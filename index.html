@@ -663,11 +663,16 @@
             right: 0;
             bottom: 0;
             pointer-events: none;
+            overflow: auto;
         }
 
         .hotspot-layer.clickable {
             pointer-events: all;
             cursor: crosshair;
+        }
+
+        .hotspot-layer:not(.clickable) {
+            pointer-events: none;
         }
 
         .hotspot-marker {
@@ -817,23 +822,28 @@
 
         /* Toolbar */
         .preview-toolbar {
-            position: absolute;
+            position: fixed;
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
             background: var(--bg-card);
             border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 8px;
+            border-radius: 16px;
+            padding: 12px;
+            display: none;
+            gap: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+
+        .feedback-view.active .preview-toolbar {
             display: flex;
-            gap: 8px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
         }
 
         .toolbar-btn {
-            width: 44px;
-            height: 44px;
-            border-radius: 8px;
+            width: 52px;
+            height: 52px;
+            border-radius: 12px;
             background: var(--bg-elevated);
             border: 1px solid var(--border);
             color: var(--text-secondary);
@@ -841,19 +851,45 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 18px;
+            font-size: 22px;
             transition: all 0.2s ease;
         }
 
         .toolbar-btn:hover {
             color: var(--text-primary);
             border-color: var(--text-muted);
+            transform: scale(1.05);
         }
 
         .toolbar-btn.active {
             background: var(--primary);
             border-color: var(--primary);
             color: white;
+            box-shadow: 0 4px 20px var(--primary-glow);
+        }
+
+        .toolbar-btn.comment-btn {
+            width: 64px;
+            height: 64px;
+            font-size: 28px;
+            border-radius: 50%;
+            background: var(--gradient-1);
+            border: none;
+            color: white;
+            box-shadow: 0 4px 20px var(--primary-glow);
+        }
+
+        .toolbar-btn.comment-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .toolbar-btn.comment-btn.active {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 4px 20px var(--primary-glow); }
+            50% { box-shadow: 0 4px 40px var(--primary-glow); }
         }
 
         /* Share Modal */
@@ -1201,7 +1237,7 @@
 
                 <!-- Toolbar -->
                 <div class="preview-toolbar">
-                    <button class="toolbar-btn" id="addCommentBtn" onclick="toggleCommentMode()" title="Agregar comentario">
+                    <button class="toolbar-btn comment-btn" id="addCommentBtn" onclick="toggleCommentMode()" title="Agregar comentario">
                         💬
                     </button>
                     <button class="toolbar-btn" onclick="shareProject()" title="Compartir">
