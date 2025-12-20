@@ -309,6 +309,18 @@
             background: rgba(99, 102, 241, 0.03);
         }
 
+        /* Cursor mode when commenting */
+        body.comment-mode,
+        body.comment-mode * {
+            cursor: crosshair !important;
+        }
+
+        body.comment-mode .fab,
+        body.comment-mode .popup,
+        body.comment-mode .popup * {
+            cursor: pointer !important;
+        }
+
         .marker {
             position: absolute;
             width: 28px;
@@ -870,6 +882,7 @@
             document.getElementById('hotspotLayer').classList.remove('active');
             document.getElementById('fabBtn').classList.remove('active', 'visible');
             document.getElementById('fabBtn').textContent = '+';
+            document.body.classList.remove('comment-mode');
         }
 
         // Side Panel Toggle
@@ -890,10 +903,12 @@
                 layer.classList.add('active');
                 fab.classList.add('active');
                 fab.textContent = '✕';
+                document.body.classList.add('comment-mode');
             } else {
                 layer.classList.remove('active');
                 fab.classList.remove('active');
                 fab.textContent = '+';
+                document.body.classList.remove('comment-mode');
             }
         }
 
