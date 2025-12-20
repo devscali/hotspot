@@ -294,6 +294,36 @@
             background: linear-gradient(to bottom, transparent 50%, rgba(13, 13, 13, 0.9) 100%);
         }
 
+        .delete-project-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            opacity: 0;
+            transition: all 0.2s ease;
+            z-index: 10;
+        }
+
+        .project-card:hover .delete-project-btn {
+            opacity: 1;
+        }
+
+        .delete-project-btn:hover {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+
         .project-info {
             padding: 20px;
         }
@@ -1383,6 +1413,7 @@
                         <div class="project-preview">
                             <iframe src="${project.url}" loading="lazy"></iframe>
                             <div class="project-preview-overlay"></div>
+                            <button class="delete-project-btn" onclick="event.stopPropagation(); deleteProject('${project.id}')" title="Eliminar proyecto">🗑️</button>
                         </div>
                         <div class="project-info">
                             <div class="project-url">${project.name}</div>
@@ -1395,6 +1426,16 @@
                     </div>
                 `;
             }).join('');
+        }
+
+        // Delete project
+        function deleteProject(projectId) {
+            if (confirm('¿Estás seguro de que quieres eliminar este proyecto?')) {
+                state.projects = state.projects.filter(p => p.id !== projectId);
+                saveProjects();
+                renderProjects();
+                showToast('Proyecto eliminado', 'success');
+            }
         }
 
         // Open project
