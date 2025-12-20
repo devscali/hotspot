@@ -830,14 +830,14 @@
             border: 1px solid var(--border);
             border-radius: 16px;
             padding: 12px;
-            display: none;
+            display: flex;
             gap: 12px;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
             z-index: 1000;
         }
 
-        .feedback-view.active .preview-toolbar {
-            display: flex;
+        .preview-toolbar.hidden {
+            display: none;
         }
 
         .toolbar-btn {
@@ -1236,7 +1236,7 @@
                 </div>
 
                 <!-- Toolbar -->
-                <div class="preview-toolbar">
+                <div class="preview-toolbar hidden" id="previewToolbar">
                     <button class="toolbar-btn comment-btn" id="addCommentBtn" onclick="toggleCommentMode()" title="Agregar comentario">
                         💬
                     </button>
@@ -1481,6 +1481,7 @@
 
             document.getElementById('dashboardView').style.display = 'none';
             document.getElementById('feedbackView').classList.add('active');
+            document.getElementById('previewToolbar').classList.remove('hidden');
 
             document.getElementById('currentProjectName').textContent = project.name;
             document.getElementById('currentProjectUrl').textContent = project.url;
@@ -1494,6 +1495,7 @@
         function showDashboard() {
             document.getElementById('dashboardView').style.display = 'block';
             document.getElementById('feedbackView').classList.remove('active');
+            document.getElementById('previewToolbar').classList.add('hidden');
             state.currentProject = null;
             state.currentPage = null;
             state.commentMode = false;
