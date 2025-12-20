@@ -1,0 +1,1830 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hotspot - Visual Feedback Tool</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #FF4D4D;
+            --primary-dark: #E63E3E;
+            --primary-glow: rgba(255, 77, 77, 0.3);
+            --bg-dark: #0D0D0D;
+            --bg-card: #1A1A1A;
+            --bg-elevated: #242424;
+            --text-primary: #FFFFFF;
+            --text-secondary: #A0A0A0;
+            --text-muted: #666666;
+            --border: #2A2A2A;
+            --success: #4ADE80;
+            --warning: #FBBF24;
+            --gradient-1: linear-gradient(135deg, #FF4D4D 0%, #FF6B35 100%);
+            --gradient-2: linear-gradient(135deg, #1A1A1A 0%, #2D2D2D 100%);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Background Effects */
+        .bg-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                linear-gradient(rgba(255,77,77,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,77,77,0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .bg-glow {
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 30% 30%, var(--primary-glow) 0%, transparent 50%);
+            opacity: 0.5;
+            pointer-events: none;
+            z-index: 0;
+            animation: glowMove 20s ease-in-out infinite;
+        }
+
+        @keyframes glowMove {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(10%, 10%); }
+        }
+
+        /* Typography */
+        h1, h2, h3, h4 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700;
+        }
+
+        /* App Container */
+        .app {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 40px;
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(20px);
+            background: rgba(13, 13, 13, 0.8);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--gradient-1);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            box-shadow: 0 4px 20px var(--primary-glow);
+        }
+
+        .logo-text {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 24px;
+            font-weight: 700;
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--gradient-1);
+            color: white;
+            box-shadow: 0 4px 20px var(--primary-glow);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 30px var(--primary-glow);
+        }
+
+        .btn-secondary {
+            background: var(--bg-elevated);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-secondary);
+            padding: 8px 16px;
+        }
+
+        .btn-ghost:hover {
+            color: var(--text-primary);
+            background: var(--bg-elevated);
+        }
+
+        /* Main Content */
+        .main {
+            padding: 40px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Dashboard View */
+        .dashboard-header {
+            margin-bottom: 40px;
+        }
+
+        .dashboard-header h1 {
+            font-size: 36px;
+            margin-bottom: 8px;
+        }
+
+        .dashboard-header p {
+            color: var(--text-secondary);
+            font-size: 16px;
+        }
+
+        /* Add Project Form */
+        .add-project-form {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 40px;
+            padding: 24px;
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+        }
+
+        .input-group {
+            flex: 1;
+            position: relative;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 16px 20px;
+            padding-left: 48px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-size: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+
+        .input-group input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            font-size: 18px;
+        }
+
+        /* Projects Grid */
+        .projects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 24px;
+        }
+
+        .project-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .project-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--primary);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .project-preview {
+            height: 200px;
+            background: var(--bg-elevated);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .project-preview iframe {
+            width: 200%;
+            height: 200%;
+            transform: scale(0.5);
+            transform-origin: top left;
+            border: none;
+            pointer-events: none;
+        }
+
+        .project-preview-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(to bottom, transparent 50%, rgba(13, 13, 13, 0.9) 100%);
+        }
+
+        .project-info {
+            padding: 20px;
+        }
+
+        .project-url {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .project-meta {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        .project-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-active {
+            background: rgba(255, 77, 77, 0.2);
+            color: var(--primary);
+        }
+
+        .badge-resolved {
+            background: rgba(74, 222, 128, 0.2);
+            color: var(--success);
+        }
+
+        /* Feedback View */
+        .feedback-view {
+            display: none;
+            height: calc(100vh - 81px);
+        }
+
+        .feedback-view.active {
+            display: flex;
+        }
+
+        .feedback-sidebar {
+            width: 360px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .feedback-sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .feedback-sidebar-header h2 {
+            font-size: 18px;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .feedback-sidebar-header p {
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        /* Page Tabs */
+        .page-tabs {
+            display: flex;
+            gap: 8px;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            overflow-x: auto;
+            flex-wrap: nowrap;
+        }
+
+        .page-tabs::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .page-tabs::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 2px;
+        }
+
+        .page-tab {
+            padding: 8px 16px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .page-tab:hover {
+            color: var(--text-primary);
+            border-color: var(--text-muted);
+        }
+
+        .page-tab.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+
+        /* Comments List */
+        .comments-section {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .comments-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .comments-tab {
+            padding: 8px 16px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .comments-tab:hover {
+            color: var(--text-primary);
+        }
+
+        .comments-tab.active {
+            background: var(--bg-elevated);
+            color: var(--text-primary);
+        }
+
+        .comment-count {
+            background: var(--primary);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            margin-left: 6px;
+        }
+
+        .comment-card {
+            background: var(--bg-elevated);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border);
+            transition: all 0.2s ease;
+        }
+
+        .comment-card:hover {
+            border-color: var(--primary);
+        }
+
+        .comment-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .comment-number {
+            width: 28px;
+            height: 28px;
+            background: var(--gradient-1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .comment-time {
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+
+        .comment-text {
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 12px;
+        }
+
+        .comment-image {
+            width: 100%;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .comment-image:hover {
+            transform: scale(1.02);
+        }
+
+        .comment-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .comment-action-btn {
+            padding: 6px 12px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .comment-action-btn:hover {
+            color: var(--text-primary);
+            border-color: var(--text-muted);
+        }
+
+        .comment-action-btn.resolve {
+            color: var(--success);
+            border-color: var(--success);
+        }
+
+        /* Reply Section */
+        .reply-section {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+        }
+
+        .reply {
+            background: var(--bg-dark);
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .reply-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .reply-author {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .reply-time {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .reply-text {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .reply-input-wrapper {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .reply-input {
+            flex: 1;
+            padding: 10px 14px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 13px;
+        }
+
+        .reply-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        /* Preview Area */
+        .preview-container {
+            flex: 1;
+            position: relative;
+            background: var(--bg-dark);
+            overflow: hidden;
+        }
+
+        .preview-iframe-wrapper {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        .preview-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: white;
+        }
+
+        /* Hotspot Markers */
+        .hotspot-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+        }
+
+        .hotspot-layer.clickable {
+            pointer-events: all;
+            cursor: crosshair;
+        }
+
+        .hotspot-marker {
+            position: absolute;
+            width: 32px;
+            height: 32px;
+            background: var(--gradient-1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 700;
+            color: white;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            pointer-events: all;
+            box-shadow: 0 4px 20px var(--primary-glow);
+            transition: all 0.2s ease;
+            animation: hotspotPulse 2s ease-in-out infinite;
+        }
+
+        .hotspot-marker:hover {
+            transform: translate(-50%, -50%) scale(1.2);
+        }
+
+        .hotspot-marker.resolved {
+            background: var(--success);
+            animation: none;
+        }
+
+        @keyframes hotspotPulse {
+            0%, 100% { box-shadow: 0 4px 20px var(--primary-glow); }
+            50% { box-shadow: 0 4px 40px var(--primary-glow); }
+        }
+
+        /* Comment Form Popup */
+        .comment-popup {
+            position: absolute;
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 20px;
+            width: 320px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border);
+            z-index: 1000;
+            display: none;
+        }
+
+        .comment-popup.active {
+            display: block;
+            animation: popupIn 0.3s ease;
+        }
+
+        @keyframes popupIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .comment-popup-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .comment-popup-header h4 {
+            font-size: 16px;
+        }
+
+        .comment-popup-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 20px;
+            transition: color 0.2s ease;
+        }
+
+        .comment-popup-close:hover {
+            color: var(--text-primary);
+        }
+
+        .comment-popup textarea {
+            width: 100%;
+            height: 100px;
+            padding: 14px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-size: 14px;
+            resize: none;
+            margin-bottom: 12px;
+        }
+
+        .comment-popup textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .image-upload-area {
+            border: 2px dashed var(--border);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .image-upload-area:hover {
+            border-color: var(--primary);
+            background: rgba(255, 77, 77, 0.05);
+        }
+
+        .image-upload-area.has-image {
+            padding: 8px;
+        }
+
+        .image-upload-area img {
+            max-width: 100%;
+            border-radius: 8px;
+        }
+
+        .image-upload-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .image-upload-text {
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        .comment-popup-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        /* Toolbar */
+        .preview-toolbar {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 8px;
+            display: flex;
+            gap: 8px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .toolbar-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 8px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.2s ease;
+        }
+
+        .toolbar-btn:hover {
+            color: var(--text-primary);
+            border-color: var(--text-muted);
+        }
+
+        .toolbar-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+
+        /* Share Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--bg-card);
+            border-radius: 20px;
+            padding: 32px;
+            max-width: 480px;
+            width: 90%;
+            border: 1px solid var(--border);
+            animation: modalIn 0.3s ease;
+        }
+
+        @keyframes modalIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .modal h3 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .modal p {
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+        }
+
+        .share-link-box {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+
+        .share-link-input {
+            flex: 1;
+            padding: 14px 16px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .copy-btn {
+            padding: 14px 20px;
+            background: var(--gradient-1);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .copy-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .copy-btn.copied {
+            background: var(--success);
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+
+        .empty-state p {
+            color: var(--text-secondary);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header {
+                padding: 16px 20px;
+            }
+
+            .main {
+                padding: 20px;
+            }
+
+            .add-project-form {
+                flex-direction: column;
+            }
+
+            .projects-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .feedback-sidebar {
+                width: 100%;
+                position: absolute;
+                z-index: 50;
+                height: auto;
+                max-height: 50vh;
+            }
+
+            .preview-toolbar {
+                bottom: 10px;
+                padding: 6px;
+            }
+        }
+
+        /* Loading States */
+        .skeleton {
+            background: linear-gradient(90deg, var(--bg-elevated) 25%, var(--border) 50%, var(--bg-elevated) 75%);
+            background-size: 200% 100%;
+            animation: skeleton 1.5s ease-in-out infinite;
+        }
+
+        @keyframes skeleton {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 2000;
+        }
+
+        .toast {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-top: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            animation: toastIn 0.3s ease;
+        }
+
+        .toast.success {
+            border-color: var(--success);
+        }
+
+        .toast.error {
+            border-color: var(--primary);
+        }
+
+        @keyframes toastIn {
+            from {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* Client View Styles */
+        .client-header {
+            background: var(--bg-card);
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .client-project-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .client-instructions {
+            background: rgba(255, 77, 77, 0.1);
+            border: 1px solid var(--primary);
+            border-radius: 10px;
+            padding: 12px 16px;
+            color: var(--text-secondary);
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Transitions */
+        .fade-in {
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .slide-up {
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-grid"></div>
+    <div class="bg-glow"></div>
+    
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">🔥</div>
+                <span class="logo-text">Hotspot</span>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-secondary" onclick="showDashboard()">
+                    <span>📋</span> Proyectos
+                </button>
+            </div>
+        </header>
+
+        <!-- Dashboard View -->
+        <main class="main dashboard-view" id="dashboardView">
+            <div class="dashboard-header slide-up">
+                <h1>Mis Proyectos</h1>
+                <p>Agrega URLs para recibir feedback visual de tus clientes</p>
+            </div>
+
+            <div class="add-project-form slide-up">
+                <div class="input-group">
+                    <span class="input-icon">🔗</span>
+                    <input type="url" id="newProjectUrl" placeholder="https://ejemplo.com" onkeypress="handleUrlKeypress(event)">
+                </div>
+                <button class="btn btn-primary" onclick="addProject()">
+                    <span>➕</span> Agregar Proyecto
+                </button>
+            </div>
+
+            <div class="projects-grid" id="projectsGrid">
+                <!-- Projects will be rendered here -->
+            </div>
+
+            <div class="empty-state" id="emptyState" style="display: none;">
+                <div class="empty-state-icon">🎯</div>
+                <h3>No hay proyectos aún</h3>
+                <p>Agrega tu primera URL para comenzar a recibir feedback</p>
+            </div>
+        </main>
+
+        <!-- Feedback View -->
+        <div class="feedback-view" id="feedbackView">
+            <div class="feedback-sidebar">
+                <div class="feedback-sidebar-header">
+                    <h2 id="currentProjectName">Proyecto</h2>
+                    <p id="currentProjectUrl">https://ejemplo.com</p>
+                </div>
+
+                <div class="page-tabs" id="pageTabs">
+                    <!-- Page tabs will be rendered here -->
+                </div>
+
+                <div class="comments-section">
+                    <div class="comments-tabs">
+                        <button class="comments-tab active" onclick="filterComments('active')">
+                            Activos <span class="comment-count" id="activeCount">0</span>
+                        </button>
+                        <button class="comments-tab" onclick="filterComments('resolved')">
+                            Resueltos <span class="comment-count" id="resolvedCount">0</span>
+                        </button>
+                    </div>
+
+                    <div id="commentsList">
+                        <!-- Comments will be rendered here -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="preview-container">
+                <div class="preview-iframe-wrapper">
+                    <iframe id="previewIframe" class="preview-iframe"></iframe>
+                    <div class="hotspot-layer" id="hotspotLayer" onclick="handleHotspotClick(event)">
+                        <!-- Hotspot markers will be rendered here -->
+                    </div>
+                </div>
+
+                <!-- Comment Popup -->
+                <div class="comment-popup" id="commentPopup">
+                    <div class="comment-popup-header">
+                        <h4>💬 Nuevo Comentario</h4>
+                        <button class="comment-popup-close" onclick="closeCommentPopup()">✕</button>
+                    </div>
+                    <textarea id="commentText" placeholder="Describe tu feedback aquí..."></textarea>
+                    <div class="image-upload-area" id="imageUploadArea" onclick="document.getElementById('imageInput').click()">
+                        <div class="image-upload-icon">📷</div>
+                        <div class="image-upload-text">Click para subir imagen (opcional)</div>
+                    </div>
+                    <input type="file" id="imageInput" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
+                    <div class="comment-popup-actions">
+                        <button class="btn btn-secondary" onclick="closeCommentPopup()">Cancelar</button>
+                        <button class="btn btn-primary" onclick="submitComment()">Enviar</button>
+                    </div>
+                </div>
+
+                <!-- Toolbar -->
+                <div class="preview-toolbar">
+                    <button class="toolbar-btn" id="addCommentBtn" onclick="toggleCommentMode()" title="Agregar comentario">
+                        💬
+                    </button>
+                    <button class="toolbar-btn" onclick="shareProject()" title="Compartir">
+                        🔗
+                    </button>
+                    <button class="toolbar-btn" onclick="refreshPreview()" title="Recargar">
+                        🔄
+                    </button>
+                    <button class="toolbar-btn" onclick="showDashboard()" title="Volver">
+                        ←
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Share Modal -->
+    <div class="modal-overlay" id="shareModal">
+        <div class="modal">
+            <h3>🔗 Compartir Proyecto</h3>
+            <p>Envía este enlace a tu cliente para que pueda dejar su feedback</p>
+            <div class="share-link-box">
+                <input type="text" class="share-link-input" id="shareLink" readonly>
+                <button class="copy-btn" id="copyBtn" onclick="copyShareLink()">Copiar</button>
+            </div>
+            <button class="btn btn-secondary" onclick="closeShareModal()" style="width: 100%;">Cerrar</button>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // ==========================================
+        // HOTSPOT - Visual Feedback Tool
+        // ==========================================
+
+        // State Management
+        let state = {
+            projects: [],
+            currentProject: null,
+            currentPage: null,
+            commentMode: false,
+            pendingComment: null,
+            commentFilter: 'active',
+            uploadedImage: null
+        };
+
+        // Firebase Configuration (placeholder - will be configured)
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        // For demo purposes, using localStorage
+        // Replace with Firebase in production
+        const storage = {
+            save: (key, data) => {
+                localStorage.setItem(key, JSON.stringify(data));
+            },
+            load: (key) => {
+                const data = localStorage.getItem(key);
+                return data ? JSON.parse(data) : null;
+            }
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProjects();
+            checkClientMode();
+        });
+
+        // Check if client mode (shared link)
+        function checkClientMode() {
+            const params = new URLSearchParams(window.location.search);
+            const projectId = params.get('project');
+            if (projectId) {
+                const project = state.projects.find(p => p.id === projectId);
+                if (project) {
+                    openProject(project);
+                }
+            }
+        }
+
+        // Load projects from storage
+        function loadProjects() {
+            const saved = storage.load('hotspot_projects');
+            if (saved) {
+                state.projects = saved;
+            }
+            renderProjects();
+        }
+
+        // Save projects to storage
+        function saveProjects() {
+            storage.save('hotspot_projects', state.projects);
+        }
+
+        // Generate unique ID
+        function generateId() {
+            return 'hs_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        // Add new project
+        async function addProject() {
+            const input = document.getElementById('newProjectUrl');
+            let url = input.value.trim();
+
+            if (!url) {
+                showToast('Por favor ingresa una URL', 'error');
+                return;
+            }
+
+            // Add https if missing
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                url = 'https://' + url;
+            }
+
+            // Validate URL
+            try {
+                new URL(url);
+            } catch (e) {
+                showToast('URL inválida', 'error');
+                return;
+            }
+
+            // Extract domain name
+            const domain = new URL(url).hostname;
+
+            const project = {
+                id: generateId(),
+                url: url,
+                name: domain,
+                createdAt: new Date().toISOString(),
+                pages: [{ url: url, name: 'Home' }],
+                comments: []
+            };
+
+            state.projects.unshift(project);
+            saveProjects();
+            renderProjects();
+
+            input.value = '';
+            showToast('Proyecto agregado correctamente', 'success');
+
+            // Detect internal links
+            detectInternalLinks(project);
+        }
+
+        // Handle Enter key on URL input
+        function handleUrlKeypress(event) {
+            if (event.key === 'Enter') {
+                addProject();
+            }
+        }
+
+        // Detect internal links from a page
+        async function detectInternalLinks(project) {
+            // Note: Due to CORS, this would need a backend proxy in production
+            // For now, we'll show a simplified version
+            showToast('Escaneando páginas internas...', 'success');
+            
+            // Simulate finding pages
+            setTimeout(() => {
+                const commonPages = ['/', '/about', '/contact', '/services', '/products'];
+                const baseUrl = new URL(project.url);
+                
+                commonPages.forEach(path => {
+                    if (path !== '/') {
+                        project.pages.push({
+                            url: baseUrl.origin + path,
+                            name: path.replace('/', '').charAt(0).toUpperCase() + path.slice(2)
+                        });
+                    }
+                });
+                
+                saveProjects();
+                if (state.currentProject && state.currentProject.id === project.id) {
+                    renderPageTabs();
+                }
+            }, 1000);
+        }
+
+        // Render projects grid
+        function renderProjects() {
+            const grid = document.getElementById('projectsGrid');
+            const emptyState = document.getElementById('emptyState');
+
+            if (state.projects.length === 0) {
+                grid.style.display = 'none';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            grid.style.display = 'grid';
+            emptyState.style.display = 'none';
+
+            grid.innerHTML = state.projects.map(project => {
+                const activeComments = project.comments.filter(c => !c.resolved).length;
+                const resolvedComments = project.comments.filter(c => c.resolved).length;
+                const timeAgo = getTimeAgo(project.createdAt);
+
+                return `
+                    <div class="project-card fade-in" onclick="openProject(${JSON.stringify(project).replace(/"/g, '&quot;')})">
+                        <div class="project-preview">
+                            <iframe src="${project.url}" loading="lazy"></iframe>
+                            <div class="project-preview-overlay"></div>
+                        </div>
+                        <div class="project-info">
+                            <div class="project-url">${project.name}</div>
+                            <div class="project-meta">
+                                <span class="project-meta-item">🕐 ${timeAgo}</span>
+                                ${activeComments > 0 ? `<span class="badge badge-active">${activeComments} activos</span>` : ''}
+                                ${resolvedComments > 0 ? `<span class="badge badge-resolved">${resolvedComments} resueltos</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Open project
+        function openProject(project) {
+            state.currentProject = project;
+            state.currentPage = project.pages[0];
+
+            document.getElementById('dashboardView').style.display = 'none';
+            document.getElementById('feedbackView').classList.add('active');
+
+            document.getElementById('currentProjectName').textContent = project.name;
+            document.getElementById('currentProjectUrl').textContent = project.url;
+
+            renderPageTabs();
+            loadPage(state.currentPage.url);
+            renderComments();
+        }
+
+        // Show dashboard
+        function showDashboard() {
+            document.getElementById('dashboardView').style.display = 'block';
+            document.getElementById('feedbackView').classList.remove('active');
+            state.currentProject = null;
+            state.currentPage = null;
+            state.commentMode = false;
+            document.getElementById('hotspotLayer').classList.remove('clickable');
+            document.getElementById('addCommentBtn').classList.remove('active');
+        }
+
+        // Render page tabs
+        function renderPageTabs() {
+            const tabs = document.getElementById('pageTabs');
+            tabs.innerHTML = state.currentProject.pages.map((page, index) => `
+                <button class="page-tab ${state.currentPage && state.currentPage.url === page.url ? 'active' : ''}" 
+                        onclick="switchPage(${index})">
+                    ${page.name || 'Página ' + (index + 1)}
+                </button>
+            `).join('');
+        }
+
+        // Switch page
+        function switchPage(index) {
+            state.currentPage = state.currentProject.pages[index];
+            renderPageTabs();
+            loadPage(state.currentPage.url);
+            renderComments();
+        }
+
+        // Load page in iframe
+        function loadPage(url) {
+            const iframe = document.getElementById('previewIframe');
+            iframe.src = url;
+            renderHotspots();
+        }
+
+        // Refresh preview
+        function refreshPreview() {
+            const iframe = document.getElementById('previewIframe');
+            iframe.src = iframe.src;
+            showToast('Página recargada', 'success');
+        }
+
+        // Toggle comment mode
+        function toggleCommentMode() {
+            state.commentMode = !state.commentMode;
+            const layer = document.getElementById('hotspotLayer');
+            const btn = document.getElementById('addCommentBtn');
+
+            if (state.commentMode) {
+                layer.classList.add('clickable');
+                btn.classList.add('active');
+                showToast('Haz click en cualquier parte de la página para dejar un comentario', 'success');
+            } else {
+                layer.classList.remove('clickable');
+                btn.classList.remove('active');
+            }
+        }
+
+        // Handle hotspot click
+        function handleHotspotClick(event) {
+            if (!state.commentMode) return;
+
+            const layer = document.getElementById('hotspotLayer');
+            const rect = layer.getBoundingClientRect();
+            const x = ((event.clientX - rect.left) / rect.width) * 100;
+            const y = ((event.clientY - rect.top) / rect.height) * 100;
+
+            state.pendingComment = { x, y };
+
+            // Show comment popup
+            const popup = document.getElementById('commentPopup');
+            popup.style.left = Math.min(event.clientX - rect.left, rect.width - 340) + 'px';
+            popup.style.top = Math.min(event.clientY - rect.top, rect.height - 300) + 'px';
+            popup.classList.add('active');
+
+            // Reset form
+            document.getElementById('commentText').value = '';
+            document.getElementById('imageUploadArea').innerHTML = `
+                <div class="image-upload-icon">📷</div>
+                <div class="image-upload-text">Click para subir imagen (opcional)</div>
+            `;
+            state.uploadedImage = null;
+
+            toggleCommentMode();
+        }
+
+        // Close comment popup
+        function closeCommentPopup() {
+            document.getElementById('commentPopup').classList.remove('active');
+            state.pendingComment = null;
+        }
+
+        // Handle image upload
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                state.uploadedImage = e.target.result;
+                const area = document.getElementById('imageUploadArea');
+                area.innerHTML = `<img src="${state.uploadedImage}" alt="Preview">`;
+                area.classList.add('has-image');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Submit comment
+        function submitComment() {
+            const text = document.getElementById('commentText').value.trim();
+
+            if (!text && !state.uploadedImage) {
+                showToast('Escribe un comentario o sube una imagen', 'error');
+                return;
+            }
+
+            const comment = {
+                id: generateId(),
+                pageUrl: state.currentPage.url,
+                x: state.pendingComment.x,
+                y: state.pendingComment.y,
+                text: text,
+                image: state.uploadedImage,
+                createdAt: new Date().toISOString(),
+                resolved: false,
+                replies: []
+            };
+
+            state.currentProject.comments.push(comment);
+            saveProjects();
+
+            closeCommentPopup();
+            renderComments();
+            renderHotspots();
+
+            showToast('Comentario agregado', 'success');
+        }
+
+        // Render comments
+        function renderComments() {
+            const list = document.getElementById('commentsList');
+            const comments = state.currentProject.comments
+                .filter(c => c.pageUrl === state.currentPage.url)
+                .filter(c => state.commentFilter === 'active' ? !c.resolved : c.resolved);
+
+            // Update counts
+            const allPageComments = state.currentProject.comments.filter(c => c.pageUrl === state.currentPage.url);
+            document.getElementById('activeCount').textContent = allPageComments.filter(c => !c.resolved).length;
+            document.getElementById('resolvedCount').textContent = allPageComments.filter(c => c.resolved).length;
+
+            if (comments.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">💬</div>
+                        <h3>No hay comentarios ${state.commentFilter === 'active' ? 'activos' : 'resueltos'}</h3>
+                        <p>${state.commentFilter === 'active' ? 'Haz click en el botón 💬 para agregar uno' : ''}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            list.innerHTML = comments.map((comment, index) => `
+                <div class="comment-card fade-in" onclick="highlightHotspot('${comment.id}')">
+                    <div class="comment-header">
+                        <span class="comment-number">${index + 1}</span>
+                        <span class="comment-time">${getTimeAgo(comment.createdAt)}</span>
+                    </div>
+                    ${comment.image ? `<img class="comment-image" src="${comment.image}" alt="Adjunto" onclick="event.stopPropagation(); viewImage('${comment.image}')">` : ''}
+                    <div class="comment-text">${comment.text || '(Solo imagen)'}</div>
+                    <div class="comment-actions">
+                        ${!comment.resolved ? `
+                            <button class="comment-action-btn resolve" onclick="event.stopPropagation(); resolveComment('${comment.id}')">
+                                ✓ Resolver
+                            </button>
+                        ` : `
+                            <button class="comment-action-btn" onclick="event.stopPropagation(); unresolveComment('${comment.id}')">
+                                ↩ Reabrir
+                            </button>
+                        `}
+                        <button class="comment-action-btn" onclick="event.stopPropagation(); toggleReply('${comment.id}')">
+                            💬 Responder
+                        </button>
+                    </div>
+                    <div class="reply-section" id="replies-${comment.id}">
+                        ${comment.replies.map(reply => `
+                            <div class="reply">
+                                <div class="reply-header">
+                                    <span class="reply-author">${reply.author || 'Admin'}</span>
+                                    <span class="reply-time">${getTimeAgo(reply.createdAt)}</span>
+                                </div>
+                                <div class="reply-text">${reply.text}</div>
+                            </div>
+                        `).join('')}
+                        <div class="reply-input-wrapper" id="reply-input-${comment.id}" style="display: none;">
+                            <input type="text" class="reply-input" placeholder="Escribe una respuesta..." 
+                                   onkeypress="handleReplyKeypress(event, '${comment.id}')">
+                            <button class="btn btn-primary" style="padding: 10px 16px;" 
+                                    onclick="submitReply('${comment.id}')">↑</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Filter comments
+        function filterComments(filter) {
+            state.commentFilter = filter;
+            document.querySelectorAll('.comments-tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            renderComments();
+        }
+
+        // Resolve comment
+        function resolveComment(commentId) {
+            const comment = state.currentProject.comments.find(c => c.id === commentId);
+            if (comment) {
+                comment.resolved = true;
+                saveProjects();
+                renderComments();
+                renderHotspots();
+                showToast('Comentario resuelto', 'success');
+            }
+        }
+
+        // Unresolve comment
+        function unresolveComment(commentId) {
+            const comment = state.currentProject.comments.find(c => c.id === commentId);
+            if (comment) {
+                comment.resolved = false;
+                saveProjects();
+                renderComments();
+                renderHotspots();
+            }
+        }
+
+        // Toggle reply input
+        function toggleReply(commentId) {
+            const input = document.getElementById(`reply-input-${commentId}`);
+            input.style.display = input.style.display === 'none' ? 'flex' : 'none';
+            if (input.style.display === 'flex') {
+                input.querySelector('input').focus();
+            }
+        }
+
+        // Handle reply keypress
+        function handleReplyKeypress(event, commentId) {
+            if (event.key === 'Enter') {
+                submitReply(commentId);
+            }
+        }
+
+        // Submit reply
+        function submitReply(commentId) {
+            const input = document.querySelector(`#reply-input-${commentId} input`);
+            const text = input.value.trim();
+
+            if (!text) return;
+
+            const comment = state.currentProject.comments.find(c => c.id === commentId);
+            if (comment) {
+                comment.replies.push({
+                    id: generateId(),
+                    text: text,
+                    author: 'Admin',
+                    createdAt: new Date().toISOString()
+                });
+                saveProjects();
+                renderComments();
+                showToast('Respuesta enviada', 'success');
+            }
+        }
+
+        // Render hotspots
+        function renderHotspots() {
+            const layer = document.getElementById('hotspotLayer');
+            const comments = state.currentProject.comments
+                .filter(c => c.pageUrl === state.currentPage.url);
+
+            // Clear existing markers (except when clicking)
+            const existingMarkers = layer.querySelectorAll('.hotspot-marker');
+            existingMarkers.forEach(m => m.remove());
+
+            comments.forEach((comment, index) => {
+                const marker = document.createElement('div');
+                marker.className = `hotspot-marker ${comment.resolved ? 'resolved' : ''}`;
+                marker.style.left = comment.x + '%';
+                marker.style.top = comment.y + '%';
+                marker.textContent = index + 1;
+                marker.dataset.id = comment.id;
+                marker.onclick = (e) => {
+                    e.stopPropagation();
+                    highlightComment(comment.id);
+                };
+                layer.appendChild(marker);
+            });
+        }
+
+        // Highlight hotspot from comment
+        function highlightHotspot(commentId) {
+            const marker = document.querySelector(`.hotspot-marker[data-id="${commentId}"]`);
+            if (marker) {
+                marker.style.transform = 'translate(-50%, -50%) scale(1.5)';
+                setTimeout(() => {
+                    marker.style.transform = 'translate(-50%, -50%)';
+                }, 500);
+            }
+        }
+
+        // Highlight comment from hotspot
+        function highlightComment(commentId) {
+            const comment = state.currentProject.comments.find(c => c.id === commentId);
+            if (comment) {
+                state.commentFilter = comment.resolved ? 'resolved' : 'active';
+                document.querySelectorAll('.comments-tab').forEach(tab => tab.classList.remove('active'));
+                document.querySelector(`.comments-tab:${state.commentFilter === 'active' ? 'first' : 'last'}-child`).classList.add('active');
+                renderComments();
+
+                setTimeout(() => {
+                    const card = document.querySelector(`.comment-card`);
+                    if (card) {
+                        card.style.borderColor = 'var(--primary)';
+                        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 100);
+            }
+        }
+
+        // Share project
+        function shareProject() {
+            const shareUrl = window.location.origin + window.location.pathname + '?project=' + state.currentProject.id;
+            document.getElementById('shareLink').value = shareUrl;
+            document.getElementById('shareModal').classList.add('active');
+        }
+
+        // Close share modal
+        function closeShareModal() {
+            document.getElementById('shareModal').classList.remove('active');
+        }
+
+        // Copy share link
+        function copyShareLink() {
+            const input = document.getElementById('shareLink');
+            input.select();
+            document.execCommand('copy');
+
+            const btn = document.getElementById('copyBtn');
+            btn.textContent = '✓ Copiado';
+            btn.classList.add('copied');
+
+            setTimeout(() => {
+                btn.textContent = 'Copiar';
+                btn.classList.remove('copied');
+            }, 2000);
+
+            showToast('Enlace copiado al portapapeles', 'success');
+        }
+
+        // View image fullscreen
+        function viewImage(src) {
+            window.open(src, '_blank');
+        }
+
+        // Show toast notification
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <span>${type === 'success' ? '✓' : '⚠'}</span>
+                <span>${message}</span>
+            `;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Get time ago string
+        function getTimeAgo(dateString) {
+            const date = new Date(dateString);
+            const now = new Date();
+            const seconds = Math.floor((now - date) / 1000);
+
+            if (seconds < 60) return 'Ahora';
+            if (seconds < 3600) return Math.floor(seconds / 60) + ' min';
+            if (seconds < 86400) return Math.floor(seconds / 3600) + ' hrs';
+            if (seconds < 604800) return Math.floor(seconds / 86400) + ' días';
+            return date.toLocaleDateString('es-MX');
+        }
+
+        // Close modal on outside click
+        document.getElementById('shareModal').addEventListener('click', (e) => {
+            if (e.target.id === 'shareModal') {
+                closeShareModal();
+            }
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeCommentPopup();
+                closeShareModal();
+                if (state.commentMode) {
+                    toggleCommentMode();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
