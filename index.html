@@ -348,10 +348,14 @@
             cursor: pointer;
             box-shadow: 0 8px 32px rgba(239, 68, 68, 0.5);
             transition: all 0.2s;
-            display: flex;
+            display: none;
             align-items: center;
             justify-content: center;
             z-index: 1000;
+        }
+
+        .fab.visible {
+            display: flex;
         }
 
         .fab:hover {
@@ -710,10 +714,12 @@
                     <iframe id="previewIframe" class="preview-iframe"></iframe>
                     <div class="hotspot-layer" id="hotspotLayer" onclick="handleLayerClick(event)"></div>
                 </div>
-                <button class="fab" id="fabBtn" onclick="toggleCommentMode()">+</button>
             </div>
         </div>
     </div>
+
+    <!-- FAB Button (fuera del app para que fixed funcione) -->
+    <button class="fab" id="fabBtn" onclick="toggleCommentMode()">+</button>
 
     <!-- Comment Popup (modal centrado) -->
     <div class="popup-overlay" id="commentPopup" onclick="if(event.target===this)closePopup()">
@@ -851,6 +857,7 @@
             document.getElementById('projectName').textContent = project.name;
             document.getElementById('projectUrl').textContent = project.url;
             document.getElementById('previewIframe').src = project.url;
+            document.getElementById('fabBtn').classList.add('visible');
             renderComments();
             renderMarkers();
         }
@@ -861,7 +868,7 @@
             state.currentProject = null;
             state.commentMode = false;
             document.getElementById('hotspotLayer').classList.remove('active');
-            document.getElementById('fabBtn').classList.remove('active');
+            document.getElementById('fabBtn').classList.remove('active', 'visible');
             document.getElementById('fabBtn').textContent = '+';
         }
 
