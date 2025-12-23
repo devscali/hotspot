@@ -1,11 +1,74 @@
 const express = require('express');
 const path = require('path');
+const puppeteer = require('puppeteer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Servir archivos estáticos
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Screenshot endpoint
+app.get('/screenshot', async (req, res) => {
+    const targetUrl = req.query.url;
+    const fullPage = req.query.fullPage === 'true';
+    const width = parseInt(req.query.width) || 1440;
+    const height = parseInt(req.query.height) || 900;
+
+    if (!targetUrl) {
+        return res.status(400).json({ error: 'URL requerida' });
+    }
+
+    let browser = null;
+
+    try {
+        browser = await puppeteer.launch({
+            headless: 'new',
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
+        });
+
+        const page = await browser.newPage();
+        await page.setViewport({ width, height });
+        await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+
+        await page.goto(targetUrl, {
+            waitUntil: 'networkidle2',
+            timeout: 30000
+        });
+
+        // Esperar un poco para animaciones
+        await new Promise(r => setTimeout(r, 1000));
+
+        const screenshot = await page.screenshot({
+            type: 'png',
+            fullPage: fullPage,
+            encoding: 'base64'
+        });
+
+        const dimensions = await page.evaluate(() => ({
+            width: document.documentElement.scrollWidth,
+            height: document.documentElement.scrollHeight,
+            viewportWidth: window.innerWidth,
+            viewportHeight: window.innerHeight
+        }));
+
+        await browser.close();
+
+        res.json({
+            screenshot: `data:image/png;base64,${screenshot}`,
+            dimensions,
+            url: targetUrl
+        });
+
+    } catch (error) {
+        console.error('Screenshot error:', error);
+        if (browser) await browser.close();
+        res.status(500).json({
+            error: 'Error al capturar screenshot',
+            message: error.message
+        });
+    }
+});
 
 // Proxy endpoint - reescribe el HTML e inyecta nuestro script
 app.get('/proxy', async (req, res) => {

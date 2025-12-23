@@ -744,6 +744,194 @@
         }
 
         .toggle-panel button:hover { color: var(--text); }
+
+        /* Navigation Bar */
+        .nav-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .nav-url-input {
+            flex: 1;
+            padding: 8px 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 13px;
+        }
+
+        .nav-url-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .nav-bar .btn {
+            white-space: nowrap;
+        }
+
+        .device-switcher {
+            display: flex;
+            gap: 4px;
+            margin-left: 8px;
+            padding-left: 8px;
+            border-left: 1px solid var(--border);
+        }
+
+        .device-btn {
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.15s;
+        }
+
+        .device-btn:hover {
+            color: var(--text);
+            background: var(--bg-hover);
+        }
+
+        .device-btn.active {
+            color: var(--accent);
+            background: rgba(239, 68, 68, 0.1);
+            border-color: var(--accent);
+        }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            .panel {
+                position: fixed;
+                left: 0;
+                top: 0;
+                height: 100vh;
+                z-index: 200;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+
+            .panel.mobile-open {
+                transform: translateX(0);
+            }
+
+            .panel.collapsed {
+                transform: translateX(-100%);
+            }
+
+            .toggle-panel {
+                display: block;
+            }
+
+            .nav-bar {
+                flex-wrap: wrap;
+            }
+
+            .nav-url-input {
+                width: 100%;
+                order: 1;
+            }
+
+            .nav-bar .btn {
+                flex: 1;
+                order: 2;
+            }
+
+            .device-switcher {
+                display: none;
+            }
+
+            /* Hacer el botón de comentar más grande en móvil */
+            .comment-toggle {
+                bottom: 16px;
+                right: 16px;
+                padding: 14px 20px;
+                font-size: 15px;
+            }
+
+            /* Overlay para cerrar el panel en móvil */
+            .mobile-overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.5);
+                z-index: 199;
+            }
+
+            .mobile-overlay.active {
+                display: block;
+            }
+
+            /* Dashboard responsive */
+            .dashboard {
+                padding: 16px;
+            }
+
+            .dashboard-header h1 {
+                font-size: 22px;
+            }
+
+            .add-project {
+                flex-direction: column;
+            }
+
+            .add-project input {
+                width: 100%;
+            }
+
+            .projects-grid {
+                grid-template-columns: 1fr;
+            }
+
+            /* Popup responsive */
+            .popup {
+                width: 95%;
+                max-width: 360px;
+            }
+
+            /* Top bar en móvil - botón para abrir panel */
+            .mobile-menu-btn {
+                display: flex;
+            }
+        }
+
+        @media (min-width: 769px) {
+            .mobile-menu-btn {
+                display: none;
+            }
+
+            .mobile-overlay {
+                display: none !important;
+            }
+        }
+
+        .mobile-menu-btn {
+            width: 36px;
+            height: 36px;
+            padding: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            cursor: pointer;
+            font-size: 18px;
+        }
     </style>
 </head>
 <body>
@@ -808,6 +996,18 @@
                 <div class="toggle-panel" id="togglePanel">
                     <button onclick="toggleSidePanel()">◀</button>
                 </div>
+                <div class="nav-bar" id="navBar">
+                    <button class="mobile-menu-btn" onclick="toggleMobilePanel()">☰</button>
+                    <input type="text" id="navUrlInput" class="nav-url-input" placeholder="URL de la sección..." onkeypress="if(event.key==='Enter')navigateToUrl()">
+                    <button class="btn btn-sm btn-primary" onclick="navigateToUrl()">Ir</button>
+                    <button class="btn btn-sm" onclick="refreshScreenshot()">↻</button>
+                    <div class="device-switcher">
+                        <button class="device-btn active" onclick="setDevice('desktop', this)" title="Desktop (1440px)">🖥️</button>
+                        <button class="device-btn" onclick="setDevice('tablet', this)" title="Tablet (768px)">📱</button>
+                        <button class="device-btn" onclick="setDevice('mobile', this)" title="Mobile (375px)">📱</button>
+                    </div>
+                </div>
+                <div class="mobile-overlay" id="mobileOverlay" onclick="closeMobilePanel()"></div>
                 <div class="preview-wrapper" id="previewWrapper">
                     <div class="preview-loading" id="previewLoading" style="display: none;">
                         <div class="spinner"></div>
@@ -1110,7 +1310,7 @@
             });
         }
 
-        async function loadScreenshot(url) {
+        async function loadScreenshot(url, width = 1440) {
             const loading = document.getElementById('previewLoading');
             const error = document.getElementById('previewError');
             const errorMsg = document.getElementById('previewErrorMsg');
@@ -1122,7 +1322,7 @@
             screenshot.style.display = 'none';
 
             try {
-                const response = await fetch(`/screenshot?url=${encodeURIComponent(url)}&fullPage=true`);
+                const response = await fetch(`/screenshot?url=${encodeURIComponent(url)}&fullPage=true&width=${width}`);
                 const data = await response.json();
 
                 if (!response.ok || data.error) {
@@ -1143,6 +1343,9 @@
 
                 // Guardar dimensiones
                 state.screenshotDimensions = data.dimensions;
+
+                // Actualizar URL en el input de navegación
+                document.getElementById('navUrlInput').value = url;
 
             } catch (err) {
                 console.error('Error loading screenshot:', err);
@@ -1415,6 +1618,74 @@
         document.getElementById('shareModal').onclick = e => {
             if (e.target.id === 'shareModal') closeModal();
         };
+
+        // Navigation functions
+        let currentDevice = 'desktop';
+        const deviceWidths = {
+            desktop: 1440,
+            tablet: 768,
+            mobile: 375
+        };
+
+        async function navigateToUrl() {
+            let url = document.getElementById('navUrlInput').value.trim();
+            if (!url) return;
+
+            // Agregar protocolo si falta
+            if (!url.startsWith('http')) {
+                url = 'https://' + url;
+            }
+
+            try {
+                new URL(url);
+            } catch {
+                alert('URL inválida');
+                return;
+            }
+
+            // Limpiar marcadores existentes
+            const layer = document.getElementById('hotspotLayer');
+            layer.querySelectorAll('.marker').forEach(m => m.remove());
+
+            // Cargar nueva screenshot
+            await loadScreenshot(url, deviceWidths[currentDevice]);
+        }
+
+        async function refreshScreenshot() {
+            const url = document.getElementById('navUrlInput').value.trim() || state.currentProject?.url;
+            if (url) {
+                await loadScreenshot(url, deviceWidths[currentDevice]);
+            }
+        }
+
+        async function setDevice(device, btn) {
+            currentDevice = device;
+
+            // Actualizar botones activos
+            document.querySelectorAll('.device-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // Recargar screenshot con nuevo tamaño
+            const url = document.getElementById('navUrlInput').value.trim() || state.currentProject?.url;
+            if (url) {
+                await loadScreenshot(url, deviceWidths[device]);
+            }
+        }
+
+        // Mobile panel functions
+        function toggleMobilePanel() {
+            const panel = document.getElementById('sidePanel');
+            const overlay = document.getElementById('mobileOverlay');
+            panel.classList.toggle('mobile-open');
+            overlay.classList.toggle('active');
+        }
+
+        function closeMobilePanel() {
+            const panel = document.getElementById('sidePanel');
+            const overlay = document.getElementById('mobileOverlay');
+            panel.classList.remove('mobile-open');
+            overlay.classList.remove('active');
+        }
     </script>
 </body>
 </html>
