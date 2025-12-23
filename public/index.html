@@ -1036,16 +1036,24 @@
             const layer = document.getElementById('hotspotLayer');
             layer.querySelectorAll('.marker').forEach(m => m.remove());
 
+            // Limpiar el iframe primero
+            const iframe = document.getElementById('previewIframe');
+            iframe.src = 'about:blank';
+
             state.currentProject = project;
             state.iframeScroll = { x: 0, y: 0 }; // Reset scroll
             document.getElementById('dashboardView').classList.remove('active');
             document.getElementById('feedbackView').classList.add('active');
             document.getElementById('projectName').textContent = project.name;
             document.getElementById('projectUrl').textContent = project.url;
-            // Usar proxy para cargar la URL
-            const proxyUrl = '/proxy?url=' + encodeURIComponent(project.url);
-            document.getElementById('previewIframe').src = proxyUrl;
             document.getElementById('commentToggle').classList.add('visible');
+
+            // Cargar el nuevo proyecto después de un pequeño delay para asegurar limpieza
+            setTimeout(() => {
+                const proxyUrl = '/proxy?url=' + encodeURIComponent(project.url);
+                iframe.src = proxyUrl;
+            }, 50);
+
             renderComments();
             renderMarkers();
 
@@ -1070,6 +1078,9 @@
             // Limpiar marcadores
             const layer = document.getElementById('hotspotLayer');
             layer.querySelectorAll('.marker').forEach(m => m.remove());
+
+            // Limpiar el iframe
+            document.getElementById('previewIframe').src = 'about:blank';
 
             document.getElementById('feedbackView').classList.remove('active');
             document.getElementById('dashboardView').classList.add('active');
