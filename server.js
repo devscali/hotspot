@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 3000;
 // Servir archivos estáticos
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Screenshot endpoint
+// Screenshot endpoint - versión simplificada y robusta
 app.get('/screenshot', async (req, res) => {
     const targetUrl = req.query.url;
     const fullPage = req.query.fullPage === 'true';
@@ -22,6 +22,8 @@ app.get('/screenshot', async (req, res) => {
     let browser = null;
 
     try {
+        console.log('Iniciando captura de:', targetUrl);
+
         browser = await puppeteer.launch({
             headless: 'new',
             args: [
@@ -38,80 +40,50 @@ app.get('/screenshot', async (req, res) => {
         await page.setViewport({ width, height, deviceScaleFactor: 1 });
         await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
-        // NO bloquear nada - queremos que cargue todo
-        // Navegar y esperar a que la red esté inactiva
+        // Navegar a la página
+        console.log('Navegando a la página...');
         await page.goto(targetUrl, {
-            waitUntil: 'networkidle0',
-            timeout: 60000
+            waitUntil: 'networkidle2', // Menos estricto que networkidle0
+            timeout: 30000
         });
 
-        // Esperar un poco después de la carga inicial
+        // Esperar a que el DOM esté listo
+        await page.waitForSelector('body', { timeout: 5000 }).catch(() => {});
+
+        console.log('Página cargada, esperando contenido...');
+
+        // Esperar un momento para que cargue el contenido inicial
         await new Promise(r => setTimeout(r, 2000));
 
-        // Scroll lento por toda la página para activar lazy loading
-        await page.evaluate(async () => {
-            await new Promise((resolve) => {
-                let totalHeight = 0;
-                const distance = 300;
-                const timer = setInterval(() => {
-                    const scrollHeight = document.body.scrollHeight;
-                    window.scrollBy(0, distance);
-                    totalHeight += distance;
-                    if (totalHeight >= scrollHeight) {
-                        clearInterval(timer);
-                        resolve();
-                    }
-                }, 150); // Más lento para dar tiempo a cargar
-            });
-        });
+        // Scroll para activar lazy loading
+        console.log('Haciendo scroll para activar lazy loading...');
+        await autoScroll(page);
 
-        // Esperar a que carguen las imágenes lazy loaded
-        await new Promise(r => setTimeout(r, 3000));
-
-        // Esperar explícitamente a que todas las imágenes estén cargadas
+        // Esperar a que las imágenes terminen de cargar
+        console.log('Esperando imágenes...');
         await page.evaluate(async () => {
-            // Esperar imágenes normales
-            const images = Array.from(document.querySelectorAll('img'));
-            await Promise.all(images.map(img => {
-                if (img.complete && img.naturalHeight > 0) return Promise.resolve();
-                return new Promise((resolve) => {
-                    img.addEventListener('load', resolve);
-                    img.addEventListener('error', resolve);
-                    setTimeout(resolve, 8000);
+            // Esperar a que todas las imágenes estén cargadas
+            const images = document.querySelectorAll('img');
+            const promises = Array.from(images).map(img => {
+                if (img.complete) return Promise.resolve();
+                return new Promise(resolve => {
+                    img.onload = resolve;
+                    img.onerror = resolve;
+                    // Timeout por imagen
+                    setTimeout(resolve, 3000);
                 });
-            }));
-
-            // Esperar background images
-            const elementsWithBg = Array.from(document.querySelectorAll('*')).filter(el => {
-                const style = window.getComputedStyle(el);
-                return style.backgroundImage && style.backgroundImage !== 'none';
             });
-
-            // Forzar carga de background images
-            await Promise.all(elementsWithBg.map(el => {
-                const style = window.getComputedStyle(el);
-                const bgImage = style.backgroundImage;
-                const urlMatch = bgImage.match(/url\(["']?([^"')]+)["']?\)/);
-                if (urlMatch) {
-                    return new Promise((resolve) => {
-                        const img = new Image();
-                        img.onload = resolve;
-                        img.onerror = resolve;
-                        img.src = urlMatch[1];
-                        setTimeout(resolve, 5000);
-                    });
-                }
-                return Promise.resolve();
-            }));
+            await Promise.all(promises);
         });
 
-        // Esperar más para animaciones y transiciones CSS
-        await new Promise(r => setTimeout(r, 2000));
-
-        // Scroll de vuelta arriba
-        await page.evaluate(() => window.scrollTo(0, 0));
+        // Esperar un poco más para animaciones
         await new Promise(r => setTimeout(r, 1000));
 
+        // Volver arriba
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await new Promise(r => setTimeout(r, 500));
+
+        console.log('Capturando screenshot...');
         // Capturar screenshot
         const screenshot = await page.screenshot({
             type: 'png',
@@ -127,6 +99,7 @@ app.get('/screenshot', async (req, res) => {
         }));
 
         await browser.close();
+        console.log('Screenshot completado exitosamente');
 
         res.json({
             screenshot: `data:image/png;base64,${screenshot}`,
@@ -135,14 +108,44 @@ app.get('/screenshot', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Screenshot error:', error);
-        if (browser) await browser.close();
+        console.error('Screenshot error:', error.message);
+        if (browser) {
+            try {
+                await browser.close();
+            } catch (e) {
+                // Ignorar error al cerrar
+            }
+        }
         res.status(500).json({
             error: 'Error al capturar screenshot',
             message: error.message
         });
     }
 });
+
+// Función de auto-scroll mejorada
+async function autoScroll(page) {
+    await page.evaluate(async () => {
+        await new Promise((resolve) => {
+            let totalHeight = 0;
+            const distance = 400;
+            const maxScrolls = 50; // Límite de scrolls
+            let scrollCount = 0;
+
+            const timer = setInterval(() => {
+                const scrollHeight = document.body.scrollHeight;
+                window.scrollBy(0, distance);
+                totalHeight += distance;
+                scrollCount++;
+
+                if (totalHeight >= scrollHeight || scrollCount >= maxScrolls) {
+                    clearInterval(timer);
+                    resolve();
+                }
+            }, 100);
+        });
+    });
+}
 
 // Proxy endpoint - reescribe el HTML e inyecta nuestro script
 app.get('/proxy', async (req, res) => {
