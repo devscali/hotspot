@@ -20,8 +20,13 @@ export async function handler(event) {
     try {
         // Configurar Chromium para Netlify/AWS Lambda
         browser = await puppeteer.launch({
-            args: chromium.args,
-            defaultViewport: { width, height },
+            args: [
+                ...chromium.args,
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas',
+                '--disable-gpu'
+            ],
+            defaultViewport: { width, height, deviceScaleFactor: 1 },
             executablePath: await chromium.executablePath(),
             headless: chromium.headless,
         });
@@ -31,13 +36,58 @@ export async function handler(event) {
         // Configurar user agent
         await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36');
 
-        // Navegar a la URL
+        // Bloquear recursos pesados para acelerar
+        await page.setRequestInterception(true);
+        page.on('request', (req) => {
+            const resourceType = req.resourceType();
+            if (resourceType === 'media' || resourceType === 'font') {
+                req.abort();
+            } else {
+                req.continue();
+            }
+        });
+
+        // Navegar con múltiples condiciones de espera
         await page.goto(targetUrl, {
-            waitUntil: 'networkidle2',
+            waitUntil: ['load', 'domcontentloaded', 'networkidle0'],
             timeout: 25000
         });
 
-        // Esperar un poco para que carguen animaciones/JS
+        // Esperar a que las imágenes carguen
+        await page.evaluate(async () => {
+            const images = Array.from(document.querySelectorAll('img'));
+            await Promise.all(images.map(img => {
+                if (img.complete) return Promise.resolve();
+                return new Promise((resolve) => {
+                    img.addEventListener('load', resolve);
+                    img.addEventListener('error', resolve);
+                    setTimeout(resolve, 3000);
+                });
+            }));
+        });
+
+        // Esperar por lazy-loaded content y animaciones
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+        // Scroll para activar lazy loading
+        await page.evaluate(async () => {
+            await new Promise((resolve) => {
+                let totalHeight = 0;
+                const distance = 500;
+                const timer = setInterval(() => {
+                    const scrollHeight = document.body.scrollHeight;
+                    window.scrollBy(0, distance);
+                    totalHeight += distance;
+                    if (totalHeight >= scrollHeight) {
+                        clearInterval(timer);
+                        window.scrollTo(0, 0);
+                        resolve();
+                    }
+                }, 100);
+            });
+        });
+
+        // Esperar después del scroll
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         // Capturar screenshot

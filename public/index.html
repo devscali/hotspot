@@ -967,31 +967,24 @@
 
         /* Mode Buttons - Navegar/Capturar */
         .mode-buttons {
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
-            display: none;
-            gap: 8px;
-            z-index: 1000;
-        }
-
-        .mode-buttons.visible {
             display: flex;
+            gap: 4px;
+            margin-left: auto;
         }
 
         .mode-btn {
-            padding: 12px 20px;
-            background: var(--bg-card);
+            padding: 6px 12px;
+            background: var(--bg);
             border: 1px solid var(--border);
-            border-radius: 8px;
+            border-radius: 6px;
             color: var(--text-secondary);
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 500;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.15s;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
         }
 
         .mode-btn:hover {
@@ -1006,18 +999,148 @@
             color: white;
         }
 
-        @media (max-width: 768px) {
-            .mode-buttons {
-                bottom: 16px;
-                right: 16px;
-                left: 16px;
-            }
+        /* Image Upload Area */
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 12px;
+        }
 
-            .mode-btn {
-                flex: 1;
-                justify-content: center;
-                padding: 14px 16px;
-            }
+        .upload-area:hover {
+            border-color: var(--accent);
+            background: rgba(239, 68, 68, 0.05);
+        }
+
+        .upload-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        .upload-icon {
+            font-size: 18px;
+        }
+
+        .upload-preview {
+            position: relative;
+        }
+
+        .upload-preview img {
+            max-width: 100%;
+            max-height: 150px;
+            border-radius: 6px;
+        }
+
+        .remove-image {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            width: 24px;
+            height: 24px;
+            background: var(--danger);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .remove-image:hover {
+            background: #dc2626;
+        }
+
+        /* Comment image in list */
+        .comment-attachment {
+            margin-top: 8px;
+        }
+
+        .comment-attachment img {
+            max-width: 100%;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .comment-attachment img:hover {
+            opacity: 0.9;
+        }
+
+        /* Image lightbox */
+        .lightbox {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .lightbox.active {
+            display: flex;
+        }
+
+        .lightbox img {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 8px;
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            background: var(--bg-card);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        /* Progress bar */
+        .progress-bar {
+            width: 200px;
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            margin: 16px auto 8px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--accent);
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-percent {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--accent);
+            margin: 0;
+        }
+
+        .preview-loading p:first-of-type {
+            margin-bottom: 4px;
         }
 
     </style>
@@ -1084,12 +1207,9 @@
                 <div class="toggle-panel" id="togglePanel">
                     <button onclick="toggleSidePanel()">◀</button>
                 </div>
-                <div class="nav-bar" id="navBar">
+                <div class="top-bar" id="topBar">
                     <button class="mobile-menu-btn" onclick="toggleMobilePanel()">☰</button>
-                    <input type="text" id="navUrlInput" class="nav-url-input" placeholder="URL de la sección..." onkeypress="if(event.key==='Enter')navigateToUrl()">
-                    <button class="btn btn-sm btn-primary" onclick="navigateToUrl()">Ir</button>
-                    <button class="btn btn-sm" onclick="refreshScreenshot()">↻</button>
-                    <div class="device-switcher">
+                    <div class="device-switcher" style="margin-left: 0; padding-left: 0; border-left: none;">
                         <button class="device-btn active" onclick="setDevice('desktop', this)" title="Desktop (1440px)">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
                         </button>
@@ -1097,12 +1217,27 @@
                             <svg width="16" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18"/></svg>
                         </button>
                     </div>
+                    <input type="text" id="navUrlInput" class="nav-url-input" placeholder="URL de la sección..." onkeypress="if(event.key==='Enter')navigateToUrl()" style="flex: 1; max-width: 400px;">
+                    <button class="btn btn-sm" onclick="refreshScreenshot()">↻</button>
+                    <!-- Mode Toggle Buttons -->
+                    <div class="mode-buttons visible" id="modeButtons">
+                        <button class="mode-btn" id="btnBrowse" onclick="switchToBrowseMode()">
+                            🔗 Navegar
+                        </button>
+                        <button class="mode-btn active" id="btnCapture" onclick="captureAndComment()">
+                            📸 Comentar
+                        </button>
+                    </div>
                 </div>
                 <div class="mobile-overlay" id="mobileOverlay" onclick="closeMobilePanel()"></div>
                 <div class="preview-wrapper" id="previewWrapper">
                     <div class="preview-loading" id="previewLoading" style="display: none;">
                         <div class="spinner"></div>
-                        <p>Capturando página...</p>
+                        <p id="loadingText">Capturando página...</p>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                        <p class="progress-percent" id="progressPercent">0%</p>
                     </div>
                     <div class="preview-error" id="previewError" style="display: none;">
                         <h3>Error al cargar</h3>
@@ -1116,16 +1251,6 @@
         </div>
     </div>
 
-    <!-- Mode Toggle Buttons -->
-    <div class="mode-buttons" id="modeButtons">
-        <button class="mode-btn" id="btnBrowse" onclick="switchToBrowseMode()">
-            🔗 Navegar
-        </button>
-        <button class="mode-btn active" id="btnCapture" onclick="captureAndComment()">
-            📸 Comentar
-        </button>
-    </div>
-
     <!-- Comment Popup (modal centrado) -->
     <div class="popup-overlay" id="commentPopup" onclick="if(event.target===this)closePopup()">
         <div class="popup">
@@ -1134,11 +1259,31 @@
                 <button class="popup-close" onclick="closePopup()">✕</button>
             </div>
             <textarea id="commentText" placeholder="Escribe tu feedback..."></textarea>
+
+            <!-- Image Upload Area -->
+            <div class="upload-area" id="uploadArea" onclick="document.getElementById('imageInput').click()">
+                <input type="file" id="imageInput" accept="image/*" style="display:none" onchange="handleImageSelect(event)">
+                <div class="upload-placeholder" id="uploadPlaceholder">
+                    <span class="upload-icon">📎</span>
+                    <span>Adjuntar imagen (opcional)</span>
+                </div>
+                <div class="upload-preview" id="uploadPreview" style="display:none">
+                    <img id="previewImg" src="" alt="Preview">
+                    <button class="remove-image" onclick="removeImage(event)">✕</button>
+                </div>
+            </div>
+
             <div class="popup-actions">
                 <button class="btn btn-sm" onclick="closePopup()">Cancelar</button>
                 <button class="btn btn-sm btn-primary" onclick="submitComment()">Enviar</button>
             </div>
         </div>
+    </div>
+
+    <!-- Image Lightbox -->
+    <div class="lightbox" id="lightbox" onclick="closeLightbox()">
+        <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+        <img id="lightboxImg" src="" alt="Imagen">
     </div>
 
     <!-- Share Modal -->
@@ -1162,6 +1307,7 @@
             currentProject: null,
             commentMode: false,
             pendingComment: null,
+            pendingImage: null, // Base64 de imagen adjunta
             filter: 'active',
             screenshotDimensions: null,
             firebaseReady: false,
@@ -1388,7 +1534,6 @@
             document.getElementById('feedbackView').classList.add('active');
             document.getElementById('projectName').textContent = project.name;
             document.getElementById('projectUrl').textContent = project.url;
-            document.getElementById('modeButtons').classList.add('visible');
 
             // Cargar screenshot
             await loadScreenshot(project.url);
@@ -1418,18 +1563,61 @@
             const errorMsg = document.getElementById('previewErrorMsg');
             const screenshot = document.getElementById('previewScreenshot');
             const layer = document.getElementById('hotspotLayer');
+            const loadingText = document.getElementById('loadingText');
+            const progressFill = document.getElementById('progressFill');
+            const progressPercent = document.getElementById('progressPercent');
 
             loading.style.display = 'block';
             error.style.display = 'none';
             screenshot.style.display = 'none';
 
+            // Reset progress
+            progressFill.style.width = '0%';
+            progressPercent.textContent = '0%';
+            loadingText.textContent = 'Conectando con el servidor...';
+
+            // Simular progreso mientras espera
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                if (progress < 90) {
+                    // Incremento variable para parecer más natural
+                    const increment = progress < 30 ? 8 : progress < 60 ? 4 : 2;
+                    progress = Math.min(90, progress + increment);
+                    progressFill.style.width = progress + '%';
+                    progressPercent.textContent = progress + '%';
+
+                    // Cambiar texto según el progreso
+                    if (progress >= 10 && progress < 30) {
+                        loadingText.textContent = 'Abriendo navegador...';
+                    } else if (progress >= 30 && progress < 50) {
+                        loadingText.textContent = 'Navegando a la página...';
+                    } else if (progress >= 50 && progress < 70) {
+                        loadingText.textContent = 'Esperando que cargue el contenido...';
+                    } else if (progress >= 70 && progress < 85) {
+                        loadingText.textContent = 'Renderizando página...';
+                    } else if (progress >= 85) {
+                        loadingText.textContent = 'Capturando screenshot...';
+                    }
+                }
+            }, 500);
+
             try {
                 const response = await fetch(`/screenshot?url=${encodeURIComponent(url)}&fullPage=true&width=${width}`);
                 const data = await response.json();
 
+                clearInterval(progressInterval);
+
                 if (!response.ok || data.error) {
                     throw new Error(data.message || data.error || 'Error desconocido');
                 }
+
+                // Completar progreso
+                progressFill.style.width = '100%';
+                progressPercent.textContent = '100%';
+                loadingText.textContent = 'Completado!';
+
+                // Pequeña pausa para mostrar el 100%
+                await new Promise(r => setTimeout(r, 300));
 
                 // Mostrar screenshot
                 screenshot.src = data.screenshot;
@@ -1450,6 +1638,7 @@
                 document.getElementById('navUrlInput').value = url;
 
             } catch (err) {
+                clearInterval(progressInterval);
                 console.error('Error loading screenshot:', err);
                 loading.style.display = 'none';
                 error.style.display = 'block';
@@ -1479,7 +1668,6 @@
             state.commentMode = false;
             state.iframeScroll = { x: 0, y: 0 };
             document.getElementById('hotspotLayer').classList.remove('active');
-            document.getElementById('modeButtons').classList.remove('visible');
             document.body.classList.remove('comment-mode');
         }
 
@@ -1515,17 +1703,69 @@
         function closePopup() {
             document.getElementById('commentPopup').classList.remove('active');
             state.pendingComment = null;
+            // Limpiar imagen adjunta
+            state.pendingImage = null;
+            document.getElementById('uploadPlaceholder').style.display = 'flex';
+            document.getElementById('uploadPreview').style.display = 'none';
+            document.getElementById('previewImg').src = '';
+            document.getElementById('imageInput').value = '';
+        }
+
+        // Image upload functions
+        function handleImageSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Validar tipo de archivo
+            if (!file.type.startsWith('image/')) {
+                alert('Por favor selecciona una imagen válida');
+                return;
+            }
+
+            // Validar tamaño (max 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                alert('La imagen es muy grande. Máximo 5MB.');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                state.pendingImage = e.target.result;
+                document.getElementById('previewImg').src = e.target.result;
+                document.getElementById('uploadPlaceholder').style.display = 'none';
+                document.getElementById('uploadPreview').style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeImage(event) {
+            event.stopPropagation();
+            state.pendingImage = null;
+            document.getElementById('uploadPlaceholder').style.display = 'flex';
+            document.getElementById('uploadPreview').style.display = 'none';
+            document.getElementById('previewImg').src = '';
+            document.getElementById('imageInput').value = '';
+        }
+
+        function openLightbox(imageSrc) {
+            document.getElementById('lightboxImg').src = imageSrc;
+            document.getElementById('lightbox').classList.add('active');
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightbox').classList.remove('active');
         }
 
         async function submitComment() {
             const text = document.getElementById('commentText').value.trim();
-            if (!text) return;
+            if (!text && !state.pendingImage) return;
 
             const comment = {
                 id: 'c_' + Date.now(),
                 x: state.pendingComment.x,
                 y: state.pendingComment.y,
-                text,
+                text: text || '',
+                image: state.pendingImage || null,
                 createdAt: new Date().toISOString(),
                 resolved: false
             };
@@ -1576,7 +1816,12 @@
                         <span class="comment-badge ${c.resolved ? 'resolved' : ''}">${i + 1}</span>
                         <span class="comment-time">${timeAgo(c.createdAt)}</span>
                     </div>
-                    <div class="comment-text">${c.text}</div>
+                    ${c.text ? `<div class="comment-text">${c.text}</div>` : ''}
+                    ${c.image ? `
+                        <div class="comment-attachment">
+                            <img src="${c.image}" alt="Adjunto" onclick="event.stopPropagation();openLightbox('${c.image}')">
+                        </div>
+                    ` : ''}
                     <div class="comment-actions">
                         ${!c.resolved
                             ? `<button class="btn btn-sm" onclick="event.stopPropagation();resolveComment('${c.id}')">✓ Resolver</button>`
@@ -1694,6 +1939,7 @@
             if (e.key === 'Escape') {
                 closePopup();
                 closeModal();
+                closeLightbox();
             }
         });
 
