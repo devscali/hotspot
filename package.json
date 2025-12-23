@@ -1,0 +1,27 @@
+{
+  "name": "hotspot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/devscali/hotspot.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/devscali/hotspot/issues"
+  },
+  "homepage": "https://github.com/devscali/hotspot#readme",
+  "dependencies": {
+    "cheerio": "^1.1.2",
+    "express": "^5.2.1",
+    "node-fetch": "^3.3.2"
+  }
+}

@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hotspot - Visual Feedback Tool</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --accent: #EF4444;
+            --accent-light: #F87171;
+            --accent-glow: rgba(239, 68, 68, 0.35);
+            --bg: #09090B;
+            --bg-card: #18181B;
+            --bg-hover: #27272A;
+            --text: #FAFAFA;
+            --text-secondary: #A1A1AA;
+            --text-muted: #52525B;
+            --border: #27272A;
+            --success: #22C55E;
+            --danger: #EF4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Layout */
+        .app { display: flex; height: 100vh; }
+
+        /* Sidebar Panel */
+        .panel {
+            width: 320px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            transition: width 0.3s ease, transform 0.3s ease;
+            position: relative;
+            z-index: 100;
+        }
+
+        .panel.collapsed {
+            width: 0;
+            border: none;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo {
+            width: 32px;
+            height: 32px;
+            background: var(--accent);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .logo-text {
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .panel-content { flex: 1; overflow-y: auto; }
+
+        /* Project Header in Panel */
+        .project-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .project-header h2 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .project-header p {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .project-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text);
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn:hover { background: var(--bg-hover); }
+
+        .btn-primary {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-light);
+            border-color: var(--accent-light);
+        }
+
+        .btn-sm {
+            padding: 6px 10px;
+            font-size: 12px;
+        }
+
+        .btn-icon {
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-danger:hover {
+            background: var(--danger);
+            border-color: var(--danger);
+        }
+
+        /* Comments */
+        .comments-header {
+            padding: 12px 16px;
+            display: flex;
+            gap: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tab {
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.15s;
+        }
+
+        .tab:hover { color: var(--text); }
+        .tab.active { background: var(--bg-hover); color: var(--text); }
+
+        .tab-count {
+            background: var(--accent);
+            color: white;
+            padding: 1px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            margin-left: 4px;
+        }
+
+        .comments-list { padding: 12px; }
+
+        .comment-item {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .comment-item:hover { border-color: var(--accent); }
+
+        .comment-item-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .comment-badge {
+            width: 24px;
+            height: 24px;
+            background: var(--accent);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .comment-badge.resolved { background: var(--success); }
+
+        .comment-time { font-size: 11px; color: var(--text-muted); }
+
+        .comment-text {
+            font-size: 13px;
+            line-height: 1.5;
+            color: var(--text-secondary);
+        }
+
+        .comment-image {
+            width: 100%;
+            border-radius: 6px;
+            margin-top: 8px;
+        }
+
+        .comment-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        /* Empty State */
+        .empty-state {
+            padding: 40px 20px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        .empty-state-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.5; }
+        .empty-state h3 { font-size: 14px; margin-bottom: 4px; color: var(--text-secondary); }
+        .empty-state p { font-size: 12px; }
+
+        /* Main Area */
+        .main-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            background: #111;
+        }
+
+        /* Top Bar */
+        .top-bar {
+            height: 48px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            gap: 8px;
+        }
+
+        .top-bar-title {
+            flex: 1;
+            font-size: 13px;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Preview */
+        .preview-wrapper {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .preview-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: white;
+        }
+
+        /* Hotspot Layer */
+        .hotspot-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .hotspot-layer.active {
+            pointer-events: auto;
+            cursor: crosshair;
+            background: rgba(99, 102, 241, 0.03);
+        }
+
+
+        /* Cursor mode when commenting */
+        body.comment-mode {
+            cursor: crosshair !important;
+        }
+
+        body.comment-mode .hotspot-layer {
+            cursor: crosshair !important;
+        }
+
+        body.comment-mode .fab {
+            cursor: pointer !important;
+        }
+
+        .marker {
+            position: absolute;
+            width: 28px;
+            height: 28px;
+            background: var(--accent);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: white;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            pointer-events: auto;
+            box-shadow: 0 2px 8px var(--accent-glow);
+            transition: transform 0.15s;
+            border: 2px solid white;
+        }
+
+        .marker:hover { transform: translate(-50%, -50%) scale(1.15); }
+        .marker.resolved { background: var(--success); }
+
+        /* FAB Button */
+        .fab {
+            position: fixed;
+            bottom: 32px;
+            right: 32px;
+            width: 72px;
+            height: 72px;
+            background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+            border-radius: 20px;
+            border: none;
+            color: white;
+            font-size: 32px;
+            font-weight: 300;
+            cursor: pointer;
+            box-shadow: 0 8px 32px rgba(239, 68, 68, 0.5);
+            transition: all 0.2s;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .fab.visible {
+            display: flex;
+        }
+
+        .fab:hover {
+            transform: scale(1.08);
+            box-shadow: 0 12px 40px rgba(239, 68, 68, 0.6);
+        }
+
+        .fab.active {
+            background: linear-gradient(135deg, #71717A 0%, #52525B 100%);
+            border-radius: 50%;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Comment Popup - centrado en pantalla */
+        .popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.6);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1001;
+        }
+
+        .popup-overlay.active { display: flex; }
+
+        .popup {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            width: 360px;
+            max-width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+        }
+
+        .popup-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .popup-header h4 { font-size: 14px; font-weight: 600; }
+
+        .popup-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        .popup textarea {
+            width: 100%;
+            height: 80px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px;
+            color: var(--text);
+            font-size: 13px;
+            resize: none;
+            margin-bottom: 10px;
+        }
+
+        .popup textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .popup-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        /* Modal */
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 500;
+        }
+
+        .modal-backdrop.active { display: flex; }
+
+        .modal {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            width: 400px;
+            max-width: 90%;
+        }
+
+        .modal h3 { font-size: 18px; margin-bottom: 8px; }
+        .modal p { font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; }
+
+        .modal-input {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .modal-input input {
+            flex: 1;
+            padding: 10px 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 13px;
+        }
+
+        .modal-input input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        /* Dashboard */
+        .dashboard {
+            flex: 1;
+            padding: 32px;
+            overflow-y: auto;
+        }
+
+        .dashboard-header {
+            margin-bottom: 32px;
+        }
+
+        .dashboard-header h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .dashboard-header p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .add-project {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 32px;
+        }
+
+        .add-project input {
+            flex: 1;
+            padding: 14px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .add-project input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .projects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 16px;
+        }
+
+        .project-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .project-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        .project-card-preview {
+            height: 120px;
+            background: linear-gradient(135deg, var(--bg-hover) 0%, var(--bg) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .project-card-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--bg);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .project-card-icon img {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+        }
+
+        .project-card-delete {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            opacity: 0;
+            transition: opacity 0.15s;
+        }
+
+        .project-card:hover .project-card-delete { opacity: 1; }
+
+        .project-card-info { padding: 16px; }
+
+        .project-card-name {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .project-card-meta {
+            display: flex;
+            gap: 12px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .project-card-badge {
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .project-card-badge.active {
+            background: rgba(99, 102, 241, 0.2);
+            color: var(--accent);
+        }
+
+        .project-card-badge.resolved {
+            background: rgba(34, 197, 94, 0.2);
+            color: var(--success);
+        }
+
+        /* Views */
+        .view { display: none; }
+        .view.active { display: flex; flex: 1; }
+
+        /* Toggle Button */
+        .toggle-panel {
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 101;
+        }
+
+        .toggle-panel button {
+            width: 24px;
+            height: 48px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-left: none;
+            border-radius: 0 8px 8px 0;
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+
+        .toggle-panel button:hover { color: var(--text); }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <!-- Dashboard View -->
+        <div class="view active" id="dashboardView">
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="logo">H</div>
+                    <span class="logo-text">Hotspot</span>
+                </div>
+            </div>
+            <div class="main-area">
+                <div class="dashboard">
+                    <div class="dashboard-header">
+                        <h1>Proyectos</h1>
+                        <p>Agrega URLs para recibir feedback visual</p>
+                    </div>
+                    <div class="add-project">
+                        <input type="url" id="newProjectUrl" placeholder="https://tu-sitio.com" onkeypress="if(event.key==='Enter')addProject()">
+                        <button class="btn btn-primary" onclick="addProject()">+ Agregar</button>
+                    </div>
+                    <div class="projects-grid" id="projectsGrid"></div>
+                    <div class="empty-state" id="emptyState" style="display:none;">
+                        <div class="empty-state-icon">🎯</div>
+                        <h3>No hay proyectos</h3>
+                        <p>Agrega tu primera URL para comenzar</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feedback View -->
+        <div class="view" id="feedbackView">
+            <div class="panel" id="sidePanel">
+                <div class="panel-header">
+                    <div class="logo">H</div>
+                    <span class="logo-text">Hotspot</span>
+                </div>
+                <div class="project-header">
+                    <h2 id="projectName">Proyecto</h2>
+                    <p id="projectUrl">https://ejemplo.com</p>
+                    <div class="project-actions">
+                        <button class="btn btn-sm" onclick="shareProject()">🔗 Compartir</button>
+                        <button class="btn btn-sm" onclick="showDashboard()">← Volver</button>
+                    </div>
+                </div>
+                <div class="comments-header">
+                    <div class="tab active" onclick="filterComments('active', this)">
+                        Activos <span class="tab-count" id="activeCount">0</span>
+                    </div>
+                    <div class="tab" onclick="filterComments('resolved', this)">
+                        Resueltos <span class="tab-count" id="resolvedCount">0</span>
+                    </div>
+                </div>
+                <div class="panel-content">
+                    <div class="comments-list" id="commentsList"></div>
+                </div>
+            </div>
+
+            <div class="main-area">
+                <div class="toggle-panel" id="togglePanel">
+                    <button onclick="toggleSidePanel()">◀</button>
+                </div>
+                <div class="preview-wrapper">
+                    <iframe id="previewIframe" class="preview-iframe"></iframe>
+                    <div class="hotspot-layer" id="hotspotLayer" onclick="handleLayerClick(event)"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FAB Button (fuera del app para que fixed funcione) -->
+    <button class="fab" id="fabBtn" onclick="toggleCommentMode()">+</button>
+
+    <!-- Comment Popup (modal centrado) -->
+    <div class="popup-overlay" id="commentPopup" onclick="if(event.target===this)closePopup()">
+        <div class="popup">
+            <div class="popup-header">
+                <h4>Nuevo comentario</h4>
+                <button class="popup-close" onclick="closePopup()">✕</button>
+            </div>
+            <textarea id="commentText" placeholder="Escribe tu feedback..."></textarea>
+            <div class="popup-actions">
+                <button class="btn btn-sm" onclick="closePopup()">Cancelar</button>
+                <button class="btn btn-sm btn-primary" onclick="submitComment()">Enviar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Share Modal -->
+    <div class="modal-backdrop" id="shareModal">
+        <div class="modal">
+            <h3>Compartir proyecto</h3>
+            <p>Envía este enlace a tu cliente para que deje feedback</p>
+            <div class="modal-input">
+                <input type="text" id="shareLink" readonly>
+                <button class="btn btn-primary" onclick="copyLink()">Copiar</button>
+            </div>
+            <button class="btn" onclick="closeModal()" style="width:100%">Cerrar</button>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let state = {
+            projects: [],
+            currentProject: null,
+            commentMode: false,
+            pendingComment: null,
+            filter: 'active',
+            iframeScroll: { x: 0, y: 0 }
+        };
+
+        // Escuchar mensajes del iframe (scroll)
+        window.addEventListener('message', (e) => {
+            if (e.data && e.data.type === 'hotspot-scroll') {
+                state.iframeScroll = { x: e.data.scrollX, y: e.data.scrollY };
+                renderMarkers();
+            }
+        });
+
+        // Storage
+        const storage = {
+            save: (k, d) => localStorage.setItem(k, JSON.stringify(d)),
+            load: (k) => { const d = localStorage.getItem(k); return d ? JSON.parse(d) : null; }
+        };
+
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            const saved = storage.load('hotspot_projects');
+            if (saved) state.projects = saved;
+            renderProjects();
+            checkClientMode();
+        });
+
+        function checkClientMode() {
+            const params = new URLSearchParams(window.location.search);
+            const projectId = params.get('project');
+            if (projectId) {
+                const project = state.projects.find(p => p.id === projectId);
+                if (project) openProject(project);
+            }
+        }
+
+        // Projects
+        function addProject() {
+            const input = document.getElementById('newProjectUrl');
+            let url = input.value.trim();
+            if (!url) return;
+            if (!url.startsWith('http')) url = 'https://' + url;
+
+            try { new URL(url); } catch { return alert('URL inválida'); }
+
+            const project = {
+                id: 'p_' + Date.now(),
+                url,
+                name: new URL(url).hostname,
+                createdAt: new Date().toISOString(),
+                comments: []
+            };
+
+            state.projects.unshift(project);
+            storage.save('hotspot_projects', state.projects);
+            renderProjects();
+            input.value = '';
+        }
+
+        function deleteProject(id, e) {
+            e.stopPropagation();
+            if (!confirm('¿Eliminar proyecto?')) return;
+            state.projects = state.projects.filter(p => p.id !== id);
+            storage.save('hotspot_projects', state.projects);
+            renderProjects();
+        }
+
+        function renderProjects() {
+            const grid = document.getElementById('projectsGrid');
+            const empty = document.getElementById('emptyState');
+
+            if (!state.projects.length) {
+                grid.style.display = 'none';
+                empty.style.display = 'block';
+                return;
+            }
+
+            grid.style.display = 'grid';
+            empty.style.display = 'none';
+
+            grid.innerHTML = state.projects.map(p => {
+                const active = p.comments.filter(c => !c.resolved).length;
+                const resolved = p.comments.filter(c => c.resolved).length;
+                return `
+                    <div class="project-card" onclick="openProject(${JSON.stringify(p).replace(/"/g, '&quot;')})">
+                        <div class="project-card-preview">
+                            <div class="project-card-icon">
+                                <img src="https://www.google.com/s2/favicons?domain=${p.name}&sz=64" alt="">
+                            </div>
+                            <button class="btn btn-icon btn-danger project-card-delete" onclick="deleteProject('${p.id}', event)">🗑</button>
+                        </div>
+                        <div class="project-card-info">
+                            <div class="project-card-name">${p.name}</div>
+                            <div class="project-card-meta">
+                                <span>${timeAgo(p.createdAt)}</span>
+                                ${active ? `<span class="project-card-badge active">${active} activos</span>` : ''}
+                                ${resolved ? `<span class="project-card-badge resolved">${resolved} resueltos</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openProject(project) {
+            state.currentProject = project;
+            state.iframeScroll = { x: 0, y: 0 }; // Reset scroll
+            document.getElementById('dashboardView').classList.remove('active');
+            document.getElementById('feedbackView').classList.add('active');
+            document.getElementById('projectName').textContent = project.name;
+            document.getElementById('projectUrl').textContent = project.url;
+            // Usar proxy para cargar la URL
+            const proxyUrl = '/proxy?url=' + encodeURIComponent(project.url);
+            document.getElementById('previewIframe').src = proxyUrl;
+            document.getElementById('fabBtn').classList.add('visible');
+            renderComments();
+            renderMarkers();
+        }
+
+        function showDashboard() {
+            document.getElementById('feedbackView').classList.remove('active');
+            document.getElementById('dashboardView').classList.add('active');
+            state.currentProject = null;
+            state.commentMode = false;
+            document.getElementById('hotspotLayer').classList.remove('active');
+            document.getElementById('fabBtn').classList.remove('active', 'visible');
+            document.getElementById('fabBtn').textContent = '+';
+            document.body.classList.remove('comment-mode');
+        }
+
+        // Side Panel Toggle
+        function toggleSidePanel() {
+            const panel = document.getElementById('sidePanel');
+            const btn = document.querySelector('#togglePanel button');
+            panel.classList.toggle('collapsed');
+            btn.textContent = panel.classList.contains('collapsed') ? '▶' : '◀';
+        }
+
+        // Comments
+        function toggleCommentMode() {
+            state.commentMode = !state.commentMode;
+            const layer = document.getElementById('hotspotLayer');
+            const fab = document.getElementById('fabBtn');
+
+            if (state.commentMode) {
+                layer.classList.add('active');
+                fab.classList.add('active');
+                fab.textContent = '✕';
+                document.body.classList.add('comment-mode');
+            } else {
+                layer.classList.remove('active');
+                fab.classList.remove('active');
+                fab.textContent = '+';
+                document.body.classList.remove('comment-mode');
+            }
+        }
+
+        function handleLayerClick(e) {
+            if (!state.commentMode) return;
+
+            const rect = e.currentTarget.getBoundingClientRect();
+            // Posición en viewport
+            const viewX = e.clientX - rect.left;
+            const viewY = e.clientY - rect.top;
+            // Posición absoluta en el documento (viewport + scroll del iframe)
+            const x = viewX + state.iframeScroll.x;
+            const y = viewY + state.iframeScroll.y;
+
+            state.pendingComment = { x, y };
+
+            // Mostrar popup centrado
+            document.getElementById('commentPopup').classList.add('active');
+            document.getElementById('commentText').value = '';
+            document.getElementById('commentText').focus();
+
+            toggleCommentMode();
+        }
+
+        function closePopup() {
+            document.getElementById('commentPopup').classList.remove('active');
+            state.pendingComment = null;
+        }
+
+        function submitComment() {
+            const text = document.getElementById('commentText').value.trim();
+            if (!text) return;
+
+            const comment = {
+                id: 'c_' + Date.now(),
+                x: state.pendingComment.x,
+                y: state.pendingComment.y,
+                text,
+                createdAt: new Date().toISOString(),
+                resolved: false
+            };
+
+            state.currentProject.comments.push(comment);
+            storage.save('hotspot_projects', state.projects);
+            closePopup();
+            renderComments();
+            renderMarkers();
+        }
+
+        function filterComments(filter, el) {
+            state.filter = filter;
+            document.querySelectorAll('.comments-header .tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            renderComments();
+        }
+
+        function renderComments() {
+            const list = document.getElementById('commentsList');
+            const comments = state.currentProject.comments.filter(c =>
+                state.filter === 'active' ? !c.resolved : c.resolved
+            );
+
+            const all = state.currentProject.comments;
+            document.getElementById('activeCount').textContent = all.filter(c => !c.resolved).length;
+            document.getElementById('resolvedCount').textContent = all.filter(c => c.resolved).length;
+
+            if (!comments.length) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">💬</div>
+                        <h3>No hay comentarios</h3>
+                        <p>${state.filter === 'active' ? 'Haz click en + para agregar' : ''}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            list.innerHTML = comments.map((c, i) => `
+                <div class="comment-item" onclick="focusMarker('${c.id}')">
+                    <div class="comment-item-header">
+                        <span class="comment-badge ${c.resolved ? 'resolved' : ''}">${i + 1}</span>
+                        <span class="comment-time">${timeAgo(c.createdAt)}</span>
+                    </div>
+                    <div class="comment-text">${c.text}</div>
+                    <div class="comment-actions">
+                        ${!c.resolved
+                            ? `<button class="btn btn-sm" onclick="event.stopPropagation();resolveComment('${c.id}')">✓ Resolver</button>`
+                            : `<button class="btn btn-sm" onclick="event.stopPropagation();unresolveComment('${c.id}')">↩ Reabrir</button>`
+                        }
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function resolveComment(id) {
+            const c = state.currentProject.comments.find(c => c.id === id);
+            if (c) c.resolved = true;
+            storage.save('hotspot_projects', state.projects);
+            renderComments();
+            renderMarkers();
+        }
+
+        function unresolveComment(id) {
+            const c = state.currentProject.comments.find(c => c.id === id);
+            if (c) c.resolved = false;
+            storage.save('hotspot_projects', state.projects);
+            renderComments();
+            renderMarkers();
+        }
+
+        function renderMarkers() {
+            const layer = document.getElementById('hotspotLayer');
+            layer.querySelectorAll('.marker').forEach(m => m.remove());
+
+            state.currentProject.comments.forEach((c, i) => {
+                // Calcular posición visible (absoluta - scroll actual)
+                const visibleX = c.x - state.iframeScroll.x;
+                const visibleY = c.y - state.iframeScroll.y;
+
+                const marker = document.createElement('div');
+                marker.className = `marker ${c.resolved ? 'resolved' : ''}`;
+                marker.style.left = visibleX + 'px';
+                marker.style.top = visibleY + 'px';
+                marker.textContent = i + 1;
+                marker.dataset.id = c.id;
+                marker.onclick = (e) => { e.stopPropagation(); focusComment(c.id); };
+                layer.appendChild(marker);
+            });
+        }
+
+        function focusMarker(id) {
+            const marker = document.querySelector(`.marker[data-id="${id}"]`);
+            if (marker) {
+                marker.style.transform = 'translate(-50%, -50%) scale(1.4)';
+                setTimeout(() => marker.style.transform = 'translate(-50%, -50%)', 400);
+            }
+        }
+
+        function focusComment(id) {
+            const c = state.currentProject.comments.find(c => c.id === id);
+            if (c) {
+                state.filter = c.resolved ? 'resolved' : 'active';
+                document.querySelectorAll('.comments-header .tab').forEach((t, i) => {
+                    t.classList.toggle('active', i === (c.resolved ? 1 : 0));
+                });
+                renderComments();
+            }
+        }
+
+        // Share
+        function shareProject() {
+            const url = window.location.origin + window.location.pathname + '?project=' + state.currentProject.id;
+            document.getElementById('shareLink').value = url;
+            document.getElementById('shareModal').classList.add('active');
+        }
+
+        function copyLink() {
+            const input = document.getElementById('shareLink');
+            input.select();
+            document.execCommand('copy');
+            const btn = event.target;
+            btn.textContent = '✓ Copiado';
+            setTimeout(() => btn.textContent = 'Copiar', 2000);
+        }
+
+        function closeModal() {
+            document.getElementById('shareModal').classList.remove('active');
+        }
+
+        // Utils
+        function timeAgo(date) {
+            const s = Math.floor((new Date() - new Date(date)) / 1000);
+            if (s < 60) return 'Ahora';
+            if (s < 3600) return Math.floor(s / 60) + 'min';
+            if (s < 86400) return Math.floor(s / 3600) + 'h';
+            if (s < 604800) return Math.floor(s / 86400) + 'd';
+            return new Date(date).toLocaleDateString('es-MX');
+        }
+
+        // Keyboard
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                closePopup();
+                closeModal();
+                if (state.commentMode) toggleCommentMode();
+            }
+        });
+
+        // Click outside modal
+        document.getElementById('shareModal').onclick = e => {
+            if (e.target.id === 'shareModal') closeModal();
+        };
+    </script>
+</body>
+</html>
