@@ -336,6 +336,13 @@
             max-width: 100%;
             display: block;
             background: white;
+            margin: 0 auto;
+        }
+
+        .preview-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
         .preview-loading {
@@ -745,14 +752,9 @@
 
         .toggle-panel button:hover { color: var(--text); }
 
-        /* Navigation Bar */
+        /* Navigation Bar - oculta, se usa Browse modal */
         .nav-bar {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 12px;
-            background: var(--bg-card);
-            border-bottom: 1px solid var(--border);
+            display: none;
         }
 
         .nav-url-input {
@@ -932,6 +934,92 @@
             cursor: pointer;
             font-size: 18px;
         }
+
+        /* Browse Links */
+        .browse-link {
+            display: block;
+            padding: 10px 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            margin-bottom: 6px;
+            color: var(--text);
+            text-decoration: none;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.15s;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .browse-link:hover {
+            border-color: var(--accent);
+            background: var(--bg-hover);
+        }
+
+        .browse-link-path {
+            color: var(--text-muted);
+            font-size: 11px;
+            display: block;
+            margin-top: 2px;
+        }
+
+        /* Mode Buttons - Navegar/Capturar */
+        .mode-buttons {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            display: none;
+            gap: 8px;
+            z-index: 1000;
+        }
+
+        .mode-buttons.visible {
+            display: flex;
+        }
+
+        .mode-btn {
+            padding: 12px 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .mode-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text);
+            border-color: var(--accent);
+        }
+
+        .mode-btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+
+        @media (max-width: 768px) {
+            .mode-buttons {
+                bottom: 16px;
+                right: 16px;
+                left: 16px;
+            }
+
+            .mode-btn {
+                flex: 1;
+                justify-content: center;
+                padding: 14px 16px;
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -1002,9 +1090,12 @@
                     <button class="btn btn-sm btn-primary" onclick="navigateToUrl()">Ir</button>
                     <button class="btn btn-sm" onclick="refreshScreenshot()">↻</button>
                     <div class="device-switcher">
-                        <button class="device-btn active" onclick="setDevice('desktop', this)" title="Desktop (1440px)">🖥️</button>
-                        <button class="device-btn" onclick="setDevice('tablet', this)" title="Tablet (768px)">📱</button>
-                        <button class="device-btn" onclick="setDevice('mobile', this)" title="Mobile (375px)">📱</button>
+                        <button class="device-btn active" onclick="setDevice('desktop', this)" title="Desktop (1440px)">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                        </button>
+                        <button class="device-btn" onclick="setDevice('mobile', this)" title="Mobile (375px)">
+                            <svg width="16" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18"/></svg>
+                        </button>
                     </div>
                 </div>
                 <div class="mobile-overlay" id="mobileOverlay" onclick="closeMobilePanel()"></div>
@@ -1025,11 +1116,15 @@
         </div>
     </div>
 
-    <!-- Comment Toggle Button -->
-    <button class="comment-toggle" id="commentToggle" onclick="toggleCommentMode()">
-        <span class="icon">💬</span>
-        <span id="toggleText">Comentar</span>
-    </button>
+    <!-- Mode Toggle Buttons -->
+    <div class="mode-buttons" id="modeButtons">
+        <button class="mode-btn" id="btnBrowse" onclick="switchToBrowseMode()">
+            🔗 Navegar
+        </button>
+        <button class="mode-btn active" id="btnCapture" onclick="captureAndComment()">
+            📸 Comentar
+        </button>
+    </div>
 
     <!-- Comment Popup (modal centrado) -->
     <div class="popup-overlay" id="commentPopup" onclick="if(event.target===this)closePopup()">
@@ -1058,6 +1153,7 @@
             <button class="btn" onclick="closeModal()" style="width:100%">Cerrar</button>
         </div>
     </div>
+
 
     <script>
         // State
@@ -1287,14 +1383,20 @@
 
             state.currentProject = project;
             state.iframeScroll = { x: 0, y: 0 }; // Reset scroll
+            siteLinks = []; // Limpiar cache de links para el nuevo proyecto
             document.getElementById('dashboardView').classList.remove('active');
             document.getElementById('feedbackView').classList.add('active');
             document.getElementById('projectName').textContent = project.name;
             document.getElementById('projectUrl').textContent = project.url;
-            document.getElementById('commentToggle').classList.add('visible');
+            document.getElementById('modeButtons').classList.add('visible');
 
             // Cargar screenshot
             await loadScreenshot(project.url);
+
+            // Activar modo comentario por defecto
+            state.commentMode = true;
+            document.getElementById('hotspotLayer').classList.add('active');
+            document.body.classList.add('comment-mode');
 
             renderComments();
             renderMarkers();
@@ -1377,8 +1479,7 @@
             state.commentMode = false;
             state.iframeScroll = { x: 0, y: 0 };
             document.getElementById('hotspotLayer').classList.remove('active');
-            document.getElementById('commentToggle').classList.remove('active', 'visible');
-            document.getElementById('toggleText').textContent = 'Comentar';
+            document.getElementById('modeButtons').classList.remove('visible');
             document.body.classList.remove('comment-mode');
         }
 
@@ -1388,26 +1489,6 @@
             const btn = document.querySelector('#togglePanel button');
             panel.classList.toggle('collapsed');
             btn.textContent = panel.classList.contains('collapsed') ? '▶' : '◀';
-        }
-
-        // Comments
-        function toggleCommentMode() {
-            state.commentMode = !state.commentMode;
-            const layer = document.getElementById('hotspotLayer');
-            const toggle = document.getElementById('commentToggle');
-            const toggleText = document.getElementById('toggleText');
-
-            if (state.commentMode) {
-                layer.classList.add('active');
-                toggle.classList.add('active');
-                toggleText.textContent = 'Cancelar';
-                document.body.classList.add('comment-mode');
-            } else {
-                layer.classList.remove('active');
-                toggle.classList.remove('active');
-                toggleText.textContent = 'Comentar';
-                document.body.classList.remove('comment-mode');
-            }
         }
 
         function handleLayerClick(e) {
@@ -1542,10 +1623,13 @@
                 return;
             }
 
-            state.currentProject.comments.forEach((c, i) => {
+            // Solo mostrar comentarios activos (no resueltos)
+            const activeComments = state.currentProject.comments.filter(c => !c.resolved);
+
+            activeComments.forEach((c, i) => {
                 // Para screenshots, los marcadores se posicionan directamente en las coordenadas guardadas
                 const marker = document.createElement('div');
-                marker.className = `marker ${c.resolved ? 'resolved' : ''}`;
+                marker.className = 'marker';
                 marker.style.left = c.x + 'px';
                 marker.style.top = c.y + 'px';
                 marker.textContent = i + 1;
@@ -1610,7 +1694,6 @@
             if (e.key === 'Escape') {
                 closePopup();
                 closeModal();
-                if (state.commentMode) toggleCommentMode();
             }
         });
 
@@ -1618,6 +1701,7 @@
         document.getElementById('shareModal').onclick = e => {
             if (e.target.id === 'shareModal') closeModal();
         };
+
 
         // Navigation functions
         let currentDevice = 'desktop';
@@ -1685,6 +1769,99 @@
             const overlay = document.getElementById('mobileOverlay');
             panel.classList.remove('mobile-open');
             overlay.classList.remove('active');
+        }
+
+        // Mode switching functions - Navegar vs Capturar
+        let currentMode = 'capture'; // 'browse' or 'capture'
+        let browseIframeUrl = '';
+
+        function switchToBrowseMode() {
+            if (currentMode === 'browse') return;
+            currentMode = 'browse';
+
+            // Update buttons
+            document.getElementById('btnBrowse').classList.add('active');
+            document.getElementById('btnCapture').classList.remove('active');
+
+            // Get current URL
+            const currentUrl = document.getElementById('navUrlInput').value.trim() || state.currentProject?.url;
+            browseIframeUrl = currentUrl;
+
+            // Hide screenshot, show iframe
+            document.getElementById('previewScreenshot').style.display = 'none';
+            document.getElementById('previewLoading').style.display = 'none';
+            document.getElementById('previewError').style.display = 'none';
+
+            const iframe = document.getElementById('previewIframe');
+            iframe.style.display = 'block';
+            iframe.src = `/proxy?url=${encodeURIComponent(currentUrl)}`;
+
+            // Hide markers in browse mode
+            document.getElementById('hotspotLayer').style.display = 'none';
+
+            // Disable comment mode
+            state.commentMode = false;
+            document.body.classList.remove('comment-mode');
+
+            // Track URL changes in iframe
+            iframe.onload = () => {
+                try {
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+                    if (iframeDoc) {
+                        // Interceptar clicks en links
+                        iframeDoc.querySelectorAll('a').forEach(link => {
+                            link.addEventListener('click', (e) => {
+                                const href = link.getAttribute('href');
+                                if (href && !href.startsWith('#') && !href.startsWith('javascript:')) {
+                                    e.preventDefault();
+                                    let newUrl;
+                                    try {
+                                        newUrl = new URL(href, browseIframeUrl).href;
+                                    } catch {
+                                        newUrl = href;
+                                    }
+                                    browseIframeUrl = newUrl;
+                                    document.getElementById('navUrlInput').value = newUrl;
+                                    iframe.src = `/proxy?url=${encodeURIComponent(newUrl)}`;
+                                }
+                            });
+                        });
+                    }
+                } catch (e) {
+                    console.log('Cannot access iframe content');
+                }
+            };
+        }
+
+        async function captureAndComment() {
+            // Get the URL from the browse mode or input
+            const urlToCapture = browseIframeUrl || document.getElementById('navUrlInput').value.trim() || state.currentProject?.url;
+
+            if (!urlToCapture) return;
+
+            currentMode = 'capture';
+
+            // Update buttons
+            document.getElementById('btnBrowse').classList.remove('active');
+            document.getElementById('btnCapture').classList.add('active');
+
+            // Hide iframe, show screenshot loading
+            document.getElementById('previewIframe').style.display = 'none';
+            document.getElementById('previewIframe').src = '';
+
+            // Show hotspot layer
+            document.getElementById('hotspotLayer').style.display = 'block';
+
+            // Update URL input
+            document.getElementById('navUrlInput').value = urlToCapture;
+
+            // Capture screenshot
+            await loadScreenshot(urlToCapture, deviceWidths[currentDevice]);
+
+            // Enable comment mode
+            state.commentMode = true;
+            document.getElementById('hotspotLayer').classList.add('active');
+            document.body.classList.add('comment-mode');
         }
     </script>
 </body>
