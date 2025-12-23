@@ -7,6 +7,43 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, doc, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // Configuración de Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyCX3xBq_bXcQt_ERty_HpxoOOW8mFnMt9s",
+            authDomain: "hotspot-62024.firebaseapp.com",
+            projectId: "hotspot-62024",
+            storageBucket: "hotspot-62024.firebasestorage.app",
+            messagingSenderId: "106101169718",
+            appId: "1:106101169718:web:695289ad0928f4aacf8297"
+        };
+
+        // Inicializar Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Exportar para uso global
+        window.firebaseDB = {
+            db,
+            collection,
+            doc,
+            getDocs,
+            addDoc,
+            updateDoc,
+            deleteDoc,
+            onSnapshot,
+            query,
+            orderBy
+        };
+
+        // Disparar evento cuando Firebase esté listo
+        window.dispatchEvent(new Event('firebase-ready'));
+    </script>
     <style>
         :root {
             --accent: #EF4444;
@@ -772,7 +809,9 @@
             commentMode: false,
             pendingComment: null,
             filter: 'active',
-            iframeScroll: { x: 0, y: 0 }
+            iframeScroll: { x: 0, y: 0 },
+            firebaseReady: false,
+            unsubscribe: null // Para desuscribirse de listeners
         };
 
         // Escuchar mensajes del iframe (scroll)
@@ -783,18 +822,117 @@
             }
         });
 
-        // Storage
-        const storage = {
-            save: (k, d) => localStorage.setItem(k, JSON.stringify(d)),
-            load: (k) => { const d = localStorage.getItem(k); return d ? JSON.parse(d) : null; }
+        // Firebase Storage (reemplaza localStorage)
+        const firestore = {
+            // Cargar todos los proyectos
+            async loadProjects() {
+                if (!window.firebaseDB) return [];
+                const { db, collection, getDocs, query, orderBy } = window.firebaseDB;
+                try {
+                    const q = query(collection(db, 'projects'), orderBy('createdAt', 'desc'));
+                    const snapshot = await getDocs(q);
+                    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                } catch (error) {
+                    console.error('Error cargando proyectos:', error);
+                    return [];
+                }
+            },
+
+            // Agregar proyecto
+            async addProject(project) {
+                if (!window.firebaseDB) return null;
+                const { db, collection, addDoc } = window.firebaseDB;
+                try {
+                    const docRef = await addDoc(collection(db, 'projects'), {
+                        url: project.url,
+                        name: project.name,
+                        createdAt: project.createdAt,
+                        comments: project.comments || []
+                    });
+                    return docRef.id;
+                } catch (error) {
+                    console.error('Error agregando proyecto:', error);
+                    return null;
+                }
+            },
+
+            // Actualizar proyecto (para comentarios)
+            async updateProject(projectId, data) {
+                if (!window.firebaseDB) return;
+                const { db, doc, updateDoc } = window.firebaseDB;
+                try {
+                    await updateDoc(doc(db, 'projects', projectId), data);
+                } catch (error) {
+                    console.error('Error actualizando proyecto:', error);
+                }
+            },
+
+            // Eliminar proyecto
+            async deleteProject(projectId) {
+                if (!window.firebaseDB) return;
+                const { db, doc, deleteDoc } = window.firebaseDB;
+                try {
+                    await deleteDoc(doc(db, 'projects', projectId));
+                } catch (error) {
+                    console.error('Error eliminando proyecto:', error);
+                }
+            },
+
+            // Escuchar cambios en tiempo real
+            subscribeToProjects(callback) {
+                if (!window.firebaseDB) return () => {};
+                const { db, collection, onSnapshot, query, orderBy } = window.firebaseDB;
+                const q = query(collection(db, 'projects'), orderBy('createdAt', 'desc'));
+                return onSnapshot(q, (snapshot) => {
+                    const projects = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    callback(projects);
+                }, (error) => {
+                    console.error('Error en listener:', error);
+                });
+            },
+
+            // Escuchar cambios en un proyecto específico
+            subscribeToProject(projectId, callback) {
+                if (!window.firebaseDB) return () => {};
+                const { db, doc, onSnapshot } = window.firebaseDB;
+                return onSnapshot(doc(db, 'projects', projectId), (docSnap) => {
+                    if (docSnap.exists()) {
+                        callback({ id: docSnap.id, ...docSnap.data() });
+                    }
+                }, (error) => {
+                    console.error('Error en listener de proyecto:', error);
+                });
+            }
         };
 
-        // Init
-        document.addEventListener('DOMContentLoaded', () => {
-            const saved = storage.load('hotspot_projects');
-            if (saved) state.projects = saved;
+        // Init - esperar a que Firebase esté listo
+        async function initApp() {
+            state.projects = await firestore.loadProjects();
             renderProjects();
             checkClientMode();
+
+            // Suscribirse a cambios en tiempo real
+            firestore.subscribeToProjects((projects) => {
+                state.projects = projects;
+                renderProjects();
+            });
+        }
+
+        // Esperar a Firebase o iniciar con fallback
+        window.addEventListener('firebase-ready', () => {
+            state.firebaseReady = true;
+            initApp();
+        });
+
+        // Fallback si Firebase no carga en 3 segundos
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                if (!state.firebaseReady) {
+                    console.warn('Firebase no disponible, usando modo offline');
+                    renderProjects();
+                    checkClientMode();
+                }
+            }, 3000);
         });
 
         function checkClientMode() {
@@ -807,7 +945,7 @@
         }
 
         // Projects
-        function addProject() {
+        async function addProject() {
             const input = document.getElementById('newProjectUrl');
             let url = input.value.trim();
             if (!url) return;
@@ -816,24 +954,31 @@
             try { new URL(url); } catch { return alert('URL inválida'); }
 
             const project = {
-                id: 'p_' + Date.now(),
                 url,
                 name: new URL(url).hostname,
                 createdAt: new Date().toISOString(),
                 comments: []
             };
 
-            state.projects.unshift(project);
-            storage.save('hotspot_projects', state.projects);
-            renderProjects();
+            // Guardar en Firebase
+            const newId = await firestore.addProject(project);
+            if (newId) {
+                project.id = newId;
+                state.projects.unshift(project);
+                renderProjects();
+            } else {
+                alert('Error al guardar el proyecto');
+            }
             input.value = '';
         }
 
-        function deleteProject(id, e) {
+        async function deleteProject(id, e) {
             e.stopPropagation();
             if (!confirm('¿Eliminar proyecto?')) return;
+
+            // Eliminar de Firebase
+            await firestore.deleteProject(id);
             state.projects = state.projects.filter(p => p.id !== id);
-            storage.save('hotspot_projects', state.projects);
             renderProjects();
         }
 
@@ -875,6 +1020,12 @@
         }
 
         function openProject(project) {
+            // Desuscribirse del proyecto anterior si existe
+            if (state.unsubscribe) {
+                state.unsubscribe();
+                state.unsubscribe = null;
+            }
+
             state.currentProject = project;
             state.iframeScroll = { x: 0, y: 0 }; // Reset scroll
             document.getElementById('dashboardView').classList.remove('active');
@@ -887,6 +1038,16 @@
             document.getElementById('fabBtn').classList.add('visible');
             renderComments();
             renderMarkers();
+
+            // Suscribirse a cambios en tiempo real de este proyecto
+            state.unsubscribe = firestore.subscribeToProject(project.id, (updatedProject) => {
+                state.currentProject = updatedProject;
+                // Actualizar también en la lista
+                const idx = state.projects.findIndex(p => p.id === updatedProject.id);
+                if (idx !== -1) state.projects[idx] = updatedProject;
+                renderComments();
+                renderMarkers();
+            });
         }
 
         function showDashboard() {
@@ -953,7 +1114,7 @@
             state.pendingComment = null;
         }
 
-        function submitComment() {
+        async function submitComment() {
             const text = document.getElementById('commentText').value.trim();
             if (!text) return;
 
@@ -967,7 +1128,12 @@
             };
 
             state.currentProject.comments.push(comment);
-            storage.save('hotspot_projects', state.projects);
+
+            // Guardar en Firebase
+            await firestore.updateProject(state.currentProject.id, {
+                comments: state.currentProject.comments
+            });
+
             closePopup();
             renderComments();
             renderMarkers();
@@ -1018,18 +1184,28 @@
             `).join('');
         }
 
-        function resolveComment(id) {
+        async function resolveComment(id) {
             const c = state.currentProject.comments.find(c => c.id === id);
             if (c) c.resolved = true;
-            storage.save('hotspot_projects', state.projects);
+
+            // Guardar en Firebase
+            await firestore.updateProject(state.currentProject.id, {
+                comments: state.currentProject.comments
+            });
+
             renderComments();
             renderMarkers();
         }
 
-        function unresolveComment(id) {
+        async function unresolveComment(id) {
             const c = state.currentProject.comments.find(c => c.id === id);
             if (c) c.resolved = false;
-            storage.save('hotspot_projects', state.projects);
+
+            // Guardar en Firebase
+            await firestore.updateProject(state.currentProject.id, {
+                comments: state.currentProject.comments
+            });
+
             renderComments();
             renderMarkers();
         }
