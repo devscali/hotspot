@@ -16,18 +16,19 @@ app.get('/proxy', async (req, res) => {
     }
 
     try {
-        // Usar fetch dinámico (ESM)
         const fetch = (await import('node-fetch')).default;
 
-        // Obtener el HTML de la página
         const response = await fetch(targetUrl, {
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            }
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+            },
+            redirect: 'follow'
         });
 
         if (!response.ok) {
-            return res.status(response.status).send('Error al cargar la página');
+            return res.status(response.status).send('Error al cargar la página: ' + response.statusText);
         }
 
         const contentType = response.headers.get('content-type') || '';
@@ -46,12 +47,14 @@ app.get('/proxy', async (req, res) => {
         const injectedScript = `
         <script>
         (function() {
+            console.log('[Hotspot] Script inyectado correctamente');
+
             // Comunicar scroll al padre
             function sendScroll() {
                 window.parent.postMessage({
                     type: 'hotspot-scroll',
-                    scrollX: window.scrollX,
-                    scrollY: window.scrollY
+                    scrollX: window.scrollX || window.pageXOffset || 0,
+                    scrollY: window.scrollY || window.pageYOffset || 0
                 }, '*');
             }
 
@@ -64,82 +67,73 @@ app.get('/proxy', async (req, res) => {
                 }, '*');
             }
 
-            // Escuchar eventos
+            // Escuchar eventos de scroll
             window.addEventListener('scroll', sendScroll, { passive: true });
             window.addEventListener('resize', sendSize, { passive: true });
 
-            // Enviar estado inicial
+            // También capturar scroll en el documento
+            document.addEventListener('scroll', sendScroll, { passive: true });
+
+            // Enviar estado inicial cuando cargue
             window.addEventListener('load', function() {
+                console.log('[Hotspot] Página cargada, enviando scroll inicial');
                 sendScroll();
                 sendSize();
             });
 
-            // Enviar inmediatamente también
-            setTimeout(function() {
+            // Enviar inmediatamente y cada 100ms los primeros segundos
+            sendScroll();
+            sendSize();
+
+            var count = 0;
+            var interval = setInterval(function() {
                 sendScroll();
-                sendSize();
+                count++;
+                if (count > 20) clearInterval(interval);
             }, 100);
         })();
         </script>
         `;
 
-        // Reescribir URLs relativas a absolutas
+        // Base href para recursos relativos
         const baseHref = `<base href="${baseUrl.origin}${baseUrl.pathname.replace(/\/[^\/]*$/, '/')}">`;
 
-        // Inyectar base href y script
-        if (html.includes('<head>')) {
-            html = html.replace('<head>', '<head>' + baseHref);
-        } else if (html.includes('<HEAD>')) {
-            html = html.replace('<HEAD>', '<HEAD>' + baseHref);
+        // Inyectar base href después de <head>
+        if (html.match(/<head[^>]*>/i)) {
+            html = html.replace(/<head[^>]*>/i, '$&' + baseHref);
         } else {
             html = baseHref + html;
         }
 
-        // Inyectar script antes de </body>
-        if (html.includes('</body>')) {
-            html = html.replace('</body>', injectedScript + '</body>');
-        } else if (html.includes('</BODY>')) {
-            html = html.replace('</BODY>', injectedScript + '</BODY>');
+        // Inyectar script antes de </body> o al final
+        if (html.match(/<\/body>/i)) {
+            html = html.replace(/<\/body>/i, injectedScript + '</body>');
+        } else if (html.match(/<\/html>/i)) {
+            html = html.replace(/<\/html>/i, injectedScript + '</html>');
         } else {
             html = html + injectedScript;
         }
 
-        res.set('Content-Type', 'text/html');
+        // Headers para permitir iframe
+        res.set('Content-Type', 'text/html; charset=utf-8');
+        res.set('X-Frame-Options', 'ALLOWALL');
+        res.removeHeader('X-Frame-Options');
+        res.set('Content-Security-Policy', '');
+        res.removeHeader('Content-Security-Policy');
+
         res.send(html);
 
     } catch (error) {
         console.error('Proxy error:', error);
-        res.status(500).send('Error al procesar la página: ' + error.message);
-    }
-});
-
-// Proxy para recursos (CSS, JS, imágenes)
-app.get('/proxy-resource', async (req, res) => {
-    const targetUrl = req.query.url;
-
-    if (!targetUrl) {
-        return res.status(400).send('URL requerida');
-    }
-
-    try {
-        const fetch = (await import('node-fetch')).default;
-
-        const response = await fetch(targetUrl, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
-            }
-        });
-
-        const contentType = response.headers.get('content-type') || 'application/octet-stream';
-        const buffer = await response.buffer();
-
-        res.set('Content-Type', contentType);
-        res.set('Cache-Control', 'public, max-age=3600');
-        res.send(buffer);
-
-    } catch (error) {
-        console.error('Resource proxy error:', error);
-        res.status(500).send('Error');
+        res.status(500).send(`
+            <html>
+            <body style="font-family: sans-serif; padding: 40px; text-align: center;">
+                <h1>Error al cargar la página</h1>
+                <p>${error.message}</p>
+                <p>URL: ${targetUrl}</p>
+            </body>
+            </html>
+        `);
     }
 });
 

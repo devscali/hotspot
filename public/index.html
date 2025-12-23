@@ -350,14 +350,14 @@
 
         /* Cursor mode when commenting */
         body.comment-mode {
-            cursor: crosshair !important;
+            cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='10' fill='%23EF4444' stroke='white' stroke-width='2'/%3E%3Cline x1='12' y1='7' x2='12' y2='17' stroke='white' stroke-width='2'/%3E%3Cline x1='7' y1='12' x2='17' y2='12' stroke='white' stroke-width='2'/%3E%3C/svg%3E") 12 12, crosshair !important;
         }
 
         body.comment-mode .hotspot-layer {
-            cursor: crosshair !important;
+            cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='10' fill='%23EF4444' stroke='white' stroke-width='2'/%3E%3Cline x1='12' y1='7' x2='12' y2='17' stroke='white' stroke-width='2'/%3E%3Cline x1='7' y1='12' x2='17' y2='12' stroke='white' stroke-width='2'/%3E%3C/svg%3E") 12 12, crosshair !important;
         }
 
-        body.comment-mode .fab {
+        body.comment-mode .comment-toggle {
             cursor: pointer !important;
         }
 
@@ -384,41 +384,44 @@
         .marker:hover { transform: translate(-50%, -50%) scale(1.15); }
         .marker.resolved { background: var(--success); }
 
-        /* FAB Button */
-        .fab {
+        /* Comment mode toggle - pequeño y discreto */
+        .comment-toggle {
             position: fixed;
-            bottom: 32px;
-            right: 32px;
-            width: 72px;
-            height: 72px;
-            background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
-            border-radius: 20px;
-            border: none;
-            color: white;
-            font-size: 32px;
-            font-weight: 300;
+            bottom: 24px;
+            right: 24px;
+            padding: 10px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
             cursor: pointer;
-            box-shadow: 0 8px 32px rgba(239, 68, 68, 0.5);
             transition: all 0.2s;
             display: none;
             align-items: center;
-            justify-content: center;
+            gap: 8px;
             z-index: 1000;
         }
 
-        .fab.visible {
+        .comment-toggle.visible {
             display: flex;
         }
 
-        .fab:hover {
-            transform: scale(1.08);
-            box-shadow: 0 12px 40px rgba(239, 68, 68, 0.6);
+        .comment-toggle:hover {
+            background: var(--bg-hover);
+            color: var(--text);
+            border-color: var(--accent);
         }
 
-        .fab.active {
-            background: linear-gradient(135deg, #71717A 0%, #52525B 100%);
-            border-radius: 50%;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        .comment-toggle.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+
+        .comment-toggle .icon {
+            font-size: 16px;
         }
 
         /* Comment Popup - centrado en pantalla */
@@ -770,8 +773,11 @@
         </div>
     </div>
 
-    <!-- FAB Button (fuera del app para que fixed funcione) -->
-    <button class="fab" id="fabBtn" onclick="toggleCommentMode()">+</button>
+    <!-- Comment Toggle Button -->
+    <button class="comment-toggle" id="commentToggle" onclick="toggleCommentMode()">
+        <span class="icon">💬</span>
+        <span id="toggleText">Comentar</span>
+    </button>
 
     <!-- Comment Popup (modal centrado) -->
     <div class="popup-overlay" id="commentPopup" onclick="if(event.target===this)closePopup()">
@@ -1026,6 +1032,10 @@
                 state.unsubscribe = null;
             }
 
+            // Limpiar los marcadores anteriores
+            const layer = document.getElementById('hotspotLayer');
+            layer.querySelectorAll('.marker').forEach(m => m.remove());
+
             state.currentProject = project;
             state.iframeScroll = { x: 0, y: 0 }; // Reset scroll
             document.getElementById('dashboardView').classList.remove('active');
@@ -1035,7 +1045,7 @@
             // Usar proxy para cargar la URL
             const proxyUrl = '/proxy?url=' + encodeURIComponent(project.url);
             document.getElementById('previewIframe').src = proxyUrl;
-            document.getElementById('fabBtn').classList.add('visible');
+            document.getElementById('commentToggle').classList.add('visible');
             renderComments();
             renderMarkers();
 
@@ -1051,13 +1061,24 @@
         }
 
         function showDashboard() {
+            // Desuscribirse del proyecto
+            if (state.unsubscribe) {
+                state.unsubscribe();
+                state.unsubscribe = null;
+            }
+
+            // Limpiar marcadores
+            const layer = document.getElementById('hotspotLayer');
+            layer.querySelectorAll('.marker').forEach(m => m.remove());
+
             document.getElementById('feedbackView').classList.remove('active');
             document.getElementById('dashboardView').classList.add('active');
             state.currentProject = null;
             state.commentMode = false;
+            state.iframeScroll = { x: 0, y: 0 };
             document.getElementById('hotspotLayer').classList.remove('active');
-            document.getElementById('fabBtn').classList.remove('active', 'visible');
-            document.getElementById('fabBtn').textContent = '+';
+            document.getElementById('commentToggle').classList.remove('active', 'visible');
+            document.getElementById('toggleText').textContent = 'Comentar';
             document.body.classList.remove('comment-mode');
         }
 
@@ -1073,17 +1094,18 @@
         function toggleCommentMode() {
             state.commentMode = !state.commentMode;
             const layer = document.getElementById('hotspotLayer');
-            const fab = document.getElementById('fabBtn');
+            const toggle = document.getElementById('commentToggle');
+            const toggleText = document.getElementById('toggleText');
 
             if (state.commentMode) {
                 layer.classList.add('active');
-                fab.classList.add('active');
-                fab.textContent = '✕';
+                toggle.classList.add('active');
+                toggleText.textContent = 'Cancelar';
                 document.body.classList.add('comment-mode');
             } else {
                 layer.classList.remove('active');
-                fab.classList.remove('active');
-                fab.textContent = '+';
+                toggle.classList.remove('active');
+                toggleText.textContent = 'Comentar';
                 document.body.classList.remove('comment-mode');
             }
         }
