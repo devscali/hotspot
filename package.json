@@ -20,8 +20,10 @@
   },
   "homepage": "https://github.com/devscali/hotspot#readme",
   "dependencies": {
+    "@sparticuz/chromium": "^143.0.0",
     "cheerio": "^1.1.2",
     "express": "^5.2.1",
-    "node-fetch": "^3.3.2"
+    "node-fetch": "^3.3.2",
+    "puppeteer-core": "^24.34.0"
   }
 }

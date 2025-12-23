@@ -4,6 +4,10 @@
 
 [functions]
   node_bundler = "esbuild"
+  # Aumentar memoria y tiempo para screenshots
+  [functions.screenshot]
+    memory = 1024
+    timeout = 30
 
 # Redirigir las llamadas al proxy a la función serverless
 [[redirects]]
@@ -14,6 +18,11 @@
 [[redirects]]
   from = "/proxy-resource"
   to = "/.netlify/functions/proxy-resource"
+  status = 200
+
+[[redirects]]
+  from = "/screenshot"
+  to = "/.netlify/functions/screenshot"
   status = 200
 
 # SPA fallback

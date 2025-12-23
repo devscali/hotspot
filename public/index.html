@@ -320,7 +320,8 @@
         .preview-wrapper {
             flex: 1;
             position: relative;
-            overflow: hidden;
+            overflow: auto;
+            background: #1a1a1a;
         }
 
         .preview-iframe {
@@ -328,6 +329,51 @@
             height: 100%;
             border: none;
             background: white;
+            display: none;
+        }
+
+        .preview-screenshot {
+            max-width: 100%;
+            display: block;
+            background: white;
+        }
+
+        .preview-loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: var(--text-secondary);
+        }
+
+        .preview-loading .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 12px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .preview-error {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: var(--text-secondary);
+            padding: 20px;
+        }
+
+        .preview-error h3 {
+            color: var(--danger);
+            margin-bottom: 8px;
         }
 
         /* Hotspot Layer */
@@ -335,16 +381,13 @@
             position: absolute;
             top: 0;
             left: 0;
-            right: 0;
-            bottom: 0;
             pointer-events: none;
-            overflow: hidden;
+            overflow: visible;
         }
 
         .hotspot-layer.active {
             pointer-events: auto;
             cursor: crosshair;
-            background: rgba(99, 102, 241, 0.03);
         }
 
 
@@ -765,7 +808,16 @@
                 <div class="toggle-panel" id="togglePanel">
                     <button onclick="toggleSidePanel()">◀</button>
                 </div>
-                <div class="preview-wrapper">
+                <div class="preview-wrapper" id="previewWrapper">
+                    <div class="preview-loading" id="previewLoading" style="display: none;">
+                        <div class="spinner"></div>
+                        <p>Capturando página...</p>
+                    </div>
+                    <div class="preview-error" id="previewError" style="display: none;">
+                        <h3>Error al cargar</h3>
+                        <p id="previewErrorMsg"></p>
+                    </div>
+                    <img id="previewScreenshot" class="preview-screenshot" style="display: none;" alt="Screenshot">
                     <iframe id="previewIframe" class="preview-iframe"></iframe>
                     <div class="hotspot-layer" id="hotspotLayer" onclick="handleLayerClick(event)"></div>
                 </div>
@@ -815,18 +867,10 @@
             commentMode: false,
             pendingComment: null,
             filter: 'active',
-            iframeScroll: { x: 0, y: 0 },
+            screenshotDimensions: null,
             firebaseReady: false,
             unsubscribe: null // Para desuscribirse de listeners
         };
-
-        // Escuchar mensajes del iframe (scroll)
-        window.addEventListener('message', (e) => {
-            if (e.data && e.data.type === 'hotspot-scroll') {
-                state.iframeScroll = { x: e.data.scrollX, y: e.data.scrollY };
-                renderMarkers();
-            }
-        });
 
         // Firebase Storage (reemplaza localStorage)
         const firestore = {
@@ -1025,7 +1069,7 @@
             }).join('');
         }
 
-        function openProject(project) {
+        async function openProject(project) {
             // Desuscribirse del proyecto anterior si existe
             if (state.unsubscribe) {
                 state.unsubscribe();
@@ -1036,9 +1080,10 @@
             const layer = document.getElementById('hotspotLayer');
             layer.querySelectorAll('.marker').forEach(m => m.remove());
 
-            // Limpiar el iframe primero
-            const iframe = document.getElementById('previewIframe');
-            iframe.src = 'about:blank';
+            // Limpiar preview
+            document.getElementById('previewScreenshot').style.display = 'none';
+            document.getElementById('previewError').style.display = 'none';
+            document.getElementById('previewLoading').style.display = 'block';
 
             state.currentProject = project;
             state.iframeScroll = { x: 0, y: 0 }; // Reset scroll
@@ -1048,11 +1093,8 @@
             document.getElementById('projectUrl').textContent = project.url;
             document.getElementById('commentToggle').classList.add('visible');
 
-            // Cargar el nuevo proyecto después de un pequeño delay para asegurar limpieza
-            setTimeout(() => {
-                const proxyUrl = '/proxy?url=' + encodeURIComponent(project.url);
-                iframe.src = proxyUrl;
-            }, 50);
+            // Cargar screenshot
+            await loadScreenshot(project.url);
 
             renderComments();
             renderMarkers();
@@ -1068,6 +1110,48 @@
             });
         }
 
+        async function loadScreenshot(url) {
+            const loading = document.getElementById('previewLoading');
+            const error = document.getElementById('previewError');
+            const errorMsg = document.getElementById('previewErrorMsg');
+            const screenshot = document.getElementById('previewScreenshot');
+            const layer = document.getElementById('hotspotLayer');
+
+            loading.style.display = 'block';
+            error.style.display = 'none';
+            screenshot.style.display = 'none';
+
+            try {
+                const response = await fetch(`/screenshot?url=${encodeURIComponent(url)}&fullPage=true`);
+                const data = await response.json();
+
+                if (!response.ok || data.error) {
+                    throw new Error(data.message || data.error || 'Error desconocido');
+                }
+
+                // Mostrar screenshot
+                screenshot.src = data.screenshot;
+                screenshot.style.display = 'block';
+                loading.style.display = 'none';
+
+                // Ajustar el hotspot layer al tamaño de la imagen
+                screenshot.onload = () => {
+                    layer.style.width = screenshot.offsetWidth + 'px';
+                    layer.style.height = screenshot.offsetHeight + 'px';
+                    renderMarkers();
+                };
+
+                // Guardar dimensiones
+                state.screenshotDimensions = data.dimensions;
+
+            } catch (err) {
+                console.error('Error loading screenshot:', err);
+                loading.style.display = 'none';
+                error.style.display = 'block';
+                errorMsg.textContent = err.message;
+            }
+        }
+
         function showDashboard() {
             // Desuscribirse del proyecto
             if (state.unsubscribe) {
@@ -1079,8 +1163,10 @@
             const layer = document.getElementById('hotspotLayer');
             layer.querySelectorAll('.marker').forEach(m => m.remove());
 
-            // Limpiar el iframe
-            document.getElementById('previewIframe').src = 'about:blank';
+            // Limpiar preview
+            document.getElementById('previewScreenshot').style.display = 'none';
+            document.getElementById('previewLoading').style.display = 'none';
+            document.getElementById('previewError').style.display = 'none';
 
             document.getElementById('feedbackView').classList.remove('active');
             document.getElementById('dashboardView').classList.add('active');
@@ -1124,13 +1210,13 @@
         function handleLayerClick(e) {
             if (!state.commentMode) return;
 
-            const rect = e.currentTarget.getBoundingClientRect();
-            // Posición en viewport
-            const viewX = e.clientX - rect.left;
-            const viewY = e.clientY - rect.top;
-            // Posición absoluta en el documento (viewport + scroll del iframe)
-            const x = viewX + state.iframeScroll.x;
-            const y = viewY + state.iframeScroll.y;
+            const layer = e.currentTarget;
+            const rect = layer.getBoundingClientRect();
+            const wrapper = document.getElementById('previewWrapper');
+
+            // Posición del click relativa al layer + scroll del contenedor
+            const x = e.clientX - rect.left + wrapper.scrollLeft;
+            const y = e.clientY - rect.top + wrapper.scrollTop;
 
             state.pendingComment = { x, y };
 
@@ -1245,19 +1331,23 @@
 
         function renderMarkers() {
             const layer = document.getElementById('hotspotLayer');
+            // Siempre limpiar todos los marcadores primero
             layer.querySelectorAll('.marker').forEach(m => m.remove());
 
-            state.currentProject.comments.forEach((c, i) => {
-                // Calcular posición visible (absoluta - scroll actual)
-                const visibleX = c.x - state.iframeScroll.x;
-                const visibleY = c.y - state.iframeScroll.y;
+            // Solo renderizar si hay un proyecto actual con comentarios
+            if (!state.currentProject || !state.currentProject.comments) {
+                return;
+            }
 
+            state.currentProject.comments.forEach((c, i) => {
+                // Para screenshots, los marcadores se posicionan directamente en las coordenadas guardadas
                 const marker = document.createElement('div');
                 marker.className = `marker ${c.resolved ? 'resolved' : ''}`;
-                marker.style.left = visibleX + 'px';
-                marker.style.top = visibleY + 'px';
+                marker.style.left = c.x + 'px';
+                marker.style.top = c.y + 'px';
                 marker.textContent = i + 1;
                 marker.dataset.id = c.id;
+                marker.dataset.projectId = state.currentProject.id;
                 marker.onclick = (e) => { e.stopPropagation(); focusComment(c.id); };
                 layer.appendChild(marker);
             });
