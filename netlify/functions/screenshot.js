@@ -10,6 +10,7 @@ export async function handler(event) {
     if (!targetUrl) {
         return {
             statusCode: 400,
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ error: 'URL requerida' })
         };
     }
@@ -17,7 +18,7 @@ export async function handler(event) {
     let browser = null;
 
     try {
-        // Configurar Chromium para Netlify
+        // Configurar Chromium para Netlify/AWS Lambda
         browser = await puppeteer.launch({
             args: chromium.args,
             defaultViewport: { width, height },
@@ -28,16 +29,16 @@ export async function handler(event) {
         const page = await browser.newPage();
 
         // Configurar user agent
-        await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+        await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36');
 
         // Navegar a la URL
         await page.goto(targetUrl, {
             waitUntil: 'networkidle2',
-            timeout: 30000
+            timeout: 25000
         });
 
         // Esperar un poco para que carguen animaciones/JS
-        await page.waitForTimeout(1000);
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         // Capturar screenshot
         const screenshot = await page.screenshot({
@@ -60,7 +61,7 @@ export async function handler(event) {
             statusCode: 200,
             headers: {
                 'Content-Type': 'application/json',
-                'Cache-Control': 'public, max-age=300' // Cache 5 min
+                'Cache-Control': 'public, max-age=300'
             },
             body: JSON.stringify({
                 screenshot: `data:image/png;base64,${screenshot}`,
@@ -73,11 +74,16 @@ export async function handler(event) {
         console.error('Screenshot error:', error);
 
         if (browser) {
-            await browser.close();
+            try {
+                await browser.close();
+            } catch (e) {
+                console.error('Error closing browser:', e);
+            }
         }
 
         return {
             statusCode: 500,
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 error: 'Error al capturar screenshot',
                 message: error.message
