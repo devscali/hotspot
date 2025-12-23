@@ -38,62 +38,81 @@ app.get('/screenshot', async (req, res) => {
         await page.setViewport({ width, height, deviceScaleFactor: 1 });
         await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
-        // Bloquear recursos innecesarios para acelerar carga
-        await page.setRequestInterception(true);
-        page.on('request', (req) => {
-            const resourceType = req.resourceType();
-            // Bloquear videos y algunos recursos pesados
-            if (resourceType === 'media' || resourceType === 'font') {
-                req.abort();
-            } else {
-                req.continue();
-            }
-        });
-
-        // Navegar con múltiples condiciones de espera
+        // NO bloquear nada - queremos que cargue todo
+        // Navegar y esperar a que la red esté inactiva
         await page.goto(targetUrl, {
-            waitUntil: ['load', 'domcontentloaded', 'networkidle0'],
-            timeout: 45000
+            waitUntil: 'networkidle0',
+            timeout: 60000
         });
 
-        // Esperar a que las imágenes carguen
-        await page.evaluate(async () => {
-            const images = Array.from(document.querySelectorAll('img'));
-            await Promise.all(images.map(img => {
-                if (img.complete) return Promise.resolve();
-                return new Promise((resolve) => {
-                    img.addEventListener('load', resolve);
-                    img.addEventListener('error', resolve);
-                    // Timeout por imagen
-                    setTimeout(resolve, 5000);
-                });
-            }));
-        });
-
-        // Esperar por lazy-loaded content y animaciones
+        // Esperar un poco después de la carga inicial
         await new Promise(r => setTimeout(r, 2000));
 
-        // Scroll para activar lazy loading
+        // Scroll lento por toda la página para activar lazy loading
         await page.evaluate(async () => {
             await new Promise((resolve) => {
                 let totalHeight = 0;
-                const distance = 500;
+                const distance = 300;
                 const timer = setInterval(() => {
                     const scrollHeight = document.body.scrollHeight;
                     window.scrollBy(0, distance);
                     totalHeight += distance;
                     if (totalHeight >= scrollHeight) {
                         clearInterval(timer);
-                        window.scrollTo(0, 0);
                         resolve();
                     }
-                }, 100);
+                }, 150); // Más lento para dar tiempo a cargar
             });
         });
 
-        // Esperar después del scroll para que cargue el contenido lazy
-        await new Promise(r => setTimeout(r, 1500));
+        // Esperar a que carguen las imágenes lazy loaded
+        await new Promise(r => setTimeout(r, 3000));
 
+        // Esperar explícitamente a que todas las imágenes estén cargadas
+        await page.evaluate(async () => {
+            // Esperar imágenes normales
+            const images = Array.from(document.querySelectorAll('img'));
+            await Promise.all(images.map(img => {
+                if (img.complete && img.naturalHeight > 0) return Promise.resolve();
+                return new Promise((resolve) => {
+                    img.addEventListener('load', resolve);
+                    img.addEventListener('error', resolve);
+                    setTimeout(resolve, 8000);
+                });
+            }));
+
+            // Esperar background images
+            const elementsWithBg = Array.from(document.querySelectorAll('*')).filter(el => {
+                const style = window.getComputedStyle(el);
+                return style.backgroundImage && style.backgroundImage !== 'none';
+            });
+
+            // Forzar carga de background images
+            await Promise.all(elementsWithBg.map(el => {
+                const style = window.getComputedStyle(el);
+                const bgImage = style.backgroundImage;
+                const urlMatch = bgImage.match(/url\(["']?([^"')]+)["']?\)/);
+                if (urlMatch) {
+                    return new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = resolve;
+                        img.onerror = resolve;
+                        img.src = urlMatch[1];
+                        setTimeout(resolve, 5000);
+                    });
+                }
+                return Promise.resolve();
+            }));
+        });
+
+        // Esperar más para animaciones y transiciones CSS
+        await new Promise(r => setTimeout(r, 2000));
+
+        // Scroll de vuelta arriba
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await new Promise(r => setTimeout(r, 1000));
+
+        // Capturar screenshot
         const screenshot = await page.screenshot({
             type: 'png',
             fullPage: fullPage,
