@@ -1322,10 +1322,10 @@
                 <!-- Mode Toggle Switch - Estilo MarkUp.io -->
                 <div class="mode-toggle" id="modeToggle">
                     <button class="mode-toggle-btn active" id="btnCapture" onclick="switchToCommentMode()">
-                        Comment
+                        💬 Comment
                     </button>
                     <button class="mode-toggle-btn" id="btnBrowse" onclick="switchToBrowseMode()">
-                        Browse
+                        🔍 Browse
                     </button>
                 </div>
                 <div class="mobile-overlay" id="mobileOverlay" onclick="closeMobilePanel()"></div>
@@ -1732,13 +1732,22 @@
                 if (e.data.type === 'hotspot-size') {
                     state.iframeSize = { width: e.data.width, height: e.data.height };
                 }
-                if (e.data.type === 'hotspot-navigate') {
-                    // El iframe navegó a otra página
-                    browseIframeUrl = e.data.url;
-                    document.getElementById('navUrlInput').value = e.data.url;
-                    document.getElementById('currentPageTitle').textContent = getPathFromUrl(e.data.url);
-                    renderMarkers();
-                    renderComments();
+                if (e.data.type === 'hotspot-url') {
+                    // El iframe cargó una nueva URL
+                    const newUrl = e.data.url;
+                    const currentUrl = document.getElementById('navUrlInput').value;
+
+                    // Solo actualizar si la URL cambió
+                    if (normalizeUrl(newUrl) !== normalizeUrl(currentUrl)) {
+                        console.log('[Hotspot] URL cambió:', newUrl);
+                        browseIframeUrl = newUrl;
+                        document.getElementById('navUrlInput').value = newUrl;
+                        document.getElementById('currentPageTitle').textContent = getPathFromUrl(newUrl);
+                        // Reset scroll cuando cambia la página
+                        state.iframeScroll = { x: 0, y: 0 };
+                        renderMarkers();
+                        renderComments();
+                    }
                 }
             });
         }

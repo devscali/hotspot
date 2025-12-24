@@ -183,11 +183,14 @@ app.get('/proxy', async (req, res) => {
         let html = await response.text();
         const baseUrl = new URL(targetUrl);
 
-        // Script que inyectamos para comunicar scroll
+        // Script que inyectamos para comunicar scroll y URL
         const injectedScript = `
         <script>
         (function() {
             console.log('[Hotspot] Script inyectado correctamente');
+
+            // URL de la página actual (la original, no la del proxy)
+            var currentPageUrl = '${targetUrl}';
 
             // Comunicar scroll al padre
             function sendScroll() {
@@ -207,6 +210,14 @@ app.get('/proxy', async (req, res) => {
                 }, '*');
             }
 
+            // Comunicar la URL actual
+            function sendUrl() {
+                window.parent.postMessage({
+                    type: 'hotspot-url',
+                    url: currentPageUrl
+                }, '*');
+            }
+
             // Escuchar eventos de scroll
             window.addEventListener('scroll', sendScroll, { passive: true });
             window.addEventListener('resize', sendSize, { passive: true });
@@ -216,14 +227,16 @@ app.get('/proxy', async (req, res) => {
 
             // Enviar estado inicial cuando cargue
             window.addEventListener('load', function() {
-                console.log('[Hotspot] Página cargada, enviando scroll inicial');
+                console.log('[Hotspot] Página cargada:', currentPageUrl);
                 sendScroll();
                 sendSize();
+                sendUrl();
             });
 
-            // Enviar inmediatamente y cada 100ms los primeros segundos
+            // Enviar inmediatamente
             sendScroll();
             sendSize();
+            sendUrl();
 
             var count = 0;
             var interval = setInterval(function() {
