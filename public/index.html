@@ -434,6 +434,28 @@
             bottom: 0;
         }
 
+        /* Screenshot container */
+        .screenshot-container {
+            position: relative;
+            width: 100%;
+            min-height: 100%;
+        }
+
+        .screenshot-container .preview-screenshot {
+            display: block;
+            width: 100%;
+            max-width: 1440px;
+            margin: 0 auto;
+        }
+
+        .screenshot-container .hotspot-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+
         .preview-loading {
             position: absolute;
             top: 50%;
@@ -1342,9 +1364,13 @@
                         <h3>Error al cargar</h3>
                         <p id="previewErrorMsg"></p>
                     </div>
-                    <!-- Iframe con hotspot layer superpuesto -->
-                    <div class="iframe-container" id="iframeContainer">
+                    <!-- Iframe para modo Browse -->
+                    <div class="iframe-container" id="iframeContainer" style="display: none;">
                         <iframe id="previewIframe" class="preview-iframe"></iframe>
+                    </div>
+                    <!-- Screenshot para modo Comment -->
+                    <div class="screenshot-container" id="screenshotContainer">
+                        <img id="previewScreenshot" class="preview-screenshot" alt="Screenshot">
                         <div class="hotspot-layer" id="hotspotLayer" onclick="handleLayerClick(event)"></div>
                     </div>
                 </div>
@@ -1653,10 +1679,7 @@
             // Mostrar el título de la página actual
             document.getElementById('currentPageTitle').textContent = getPathFromUrl(project.url);
 
-            // Cargar iframe con el proxy
-            loadIframe(project.url);
-
-            // Activar modo comentario por defecto
+            // Activar modo comentario por defecto (screenshot)
             currentMode = 'comment';
             state.commentMode = true;
             document.getElementById('hotspotLayer').classList.add('active');
@@ -1664,8 +1687,14 @@
             document.getElementById('btnCapture').classList.add('active');
             document.getElementById('btnBrowse').classList.remove('active');
 
+            // Mostrar screenshot, ocultar iframe
+            document.getElementById('iframeContainer').style.display = 'none';
+            document.getElementById('screenshotContainer').style.display = 'block';
+
+            // Cargar screenshot de la página inicial
+            await loadScreenshot(project.url, deviceWidths[currentDevice]);
+
             renderComments();
-            renderMarkers();
 
             // Suscribirse a cambios en tiempo real de este proyecto
             state.unsubscribe = firestore.subscribeToProject(project.id, (updatedProject) => {
@@ -1879,22 +1908,26 @@
         function handleLayerClick(e) {
             if (!state.commentMode) return;
 
-            // Obtener posición del click relativa al layer
-            const layer = document.getElementById('hotspotLayer');
-            const layerRect = layer.getBoundingClientRect();
+            // Obtener posición del click relativa al screenshot
+            const screenshot = document.getElementById('previewScreenshot');
+            const screenshotRect = screenshot.getBoundingClientRect();
 
-            // Posición del click + scroll del iframe
-            const scrollX = state.iframeScroll?.x || 0;
-            const scrollY = state.iframeScroll?.y || 0;
+            // Calcular escala inversa para guardar coordenadas originales
+            const scaleX = (state.screenshotDimensions?.width || screenshotRect.width) / screenshotRect.width;
+            const scaleY = (state.screenshotDimensions?.height || screenshotRect.height) / screenshotRect.height;
 
-            const x = e.clientX - layerRect.left + scrollX;
-            const y = e.clientY - layerRect.top + scrollY;
+            // Posición del click relativa al screenshot, escalada a dimensiones originales
+            const clickX = e.clientX - screenshotRect.left;
+            const clickY = e.clientY - screenshotRect.top;
+
+            const x = clickX * scaleX;
+            const y = clickY * scaleY;
 
             state.pendingComment = {
                 x: Math.round(x),
                 y: Math.round(y),
-                viewportX: e.clientX - layerRect.left, // Posición en viewport (sin scroll)
-                viewportY: e.clientY - layerRect.top
+                viewportX: clickX,
+                viewportY: clickY
             };
 
             // Mostrar popup centrado
@@ -2114,15 +2147,15 @@
         }
 
         // Ir a la página del comentario y enfocar el marcador
-        function goToCommentPage(pageUrl, commentId) {
+        async function goToCommentPage(pageUrl, commentId) {
             const currentUrl = normalizeUrl(document.getElementById('navUrlInput').value.trim());
             const targetUrl = normalizeUrl(pageUrl);
 
             if (targetUrl !== currentUrl) {
-                // Navegar a esa página primero
-                loadIframe(pageUrl);
+                // Navegar a esa página - cargar screenshot
+                await loadScreenshot(pageUrl, deviceWidths[currentDevice]);
                 // Esperar a que cargue y luego enfocar
-                setTimeout(() => focusMarker(commentId), 1500);
+                setTimeout(() => focusMarker(commentId), 500);
             } else {
                 // Ya estamos en esa página, solo enfocar
                 focusMarker(commentId);
@@ -2165,13 +2198,14 @@
                 return;
             }
 
+            // Solo renderizar en modo Comment
+            if (currentMode !== 'comment') {
+                return;
+            }
+
             // Obtener la URL actual normalizada
             const rawCurrentUrl = document.getElementById('navUrlInput').value.trim() || state.currentProject?.url;
             const currentUrl = normalizeUrl(rawCurrentUrl);
-
-            // Obtener scroll actual del iframe
-            const scrollX = state.iframeScroll?.x || 0;
-            const scrollY = state.iframeScroll?.y || 0;
 
             // Solo mostrar comentarios activos (no resueltos) DE LA PÁGINA ACTUAL
             const activeComments = state.currentProject.comments.filter(c => {
@@ -2180,13 +2214,22 @@
                 return commentUrl === currentUrl;
             });
 
+            // Obtener dimensiones del screenshot para escalar marcadores
+            const screenshot = document.getElementById('previewScreenshot');
+            const screenshotRect = screenshot.getBoundingClientRect();
+            const layerRect = layer.getBoundingClientRect();
+
+            // Calcular escala si el screenshot está redimensionado
+            const scaleX = screenshotRect.width / (state.screenshotDimensions?.width || screenshotRect.width);
+            const scaleY = screenshotRect.height / (state.screenshotDimensions?.height || screenshotRect.height);
+
             activeComments.forEach((c, i) => {
                 const marker = document.createElement('div');
                 marker.className = 'marker';
 
-                // Posicionar relativo al scroll actual
-                const displayX = c.x - scrollX;
-                const displayY = c.y - scrollY;
+                // Posicionar escalado al tamaño actual del screenshot
+                const displayX = c.x * scaleX;
+                const displayY = c.y * scaleY;
 
                 marker.style.left = displayX + 'px';
                 marker.style.top = displayY + 'px';
@@ -2194,11 +2237,6 @@
                 marker.dataset.id = c.id;
                 marker.dataset.projectId = state.currentProject.id;
                 marker.onclick = (e) => { e.stopPropagation(); showCommentDetail(c.id); };
-
-                // Ocultar si está fuera del viewport
-                if (displayX < -20 || displayY < -20) {
-                    marker.style.display = 'none';
-                }
 
                 layer.appendChild(marker);
             });
@@ -2352,7 +2390,7 @@
         }
 
         // Mode switching functions - Comment vs Browse
-        // IMPORTANTE: Ahora usamos iframe siempre, el hotspot layer se superpone
+        // ENFOQUE HÍBRIDO: iframe para navegar, screenshot para comentar
         let currentMode = 'comment'; // 'browse' or 'comment'
         let browseIframeUrl = '';
         let iframeLoaded = false;
@@ -2361,24 +2399,30 @@
             if (currentMode === 'browse') return;
             currentMode = 'browse';
 
-            // Update buttons - INSTANTÁNEO
+            // Update buttons
             document.getElementById('btnBrowse').classList.add('active');
             document.getElementById('btnCapture').classList.remove('active');
 
-            // Desactivar comentarios - el usuario puede navegar libremente
+            // Desactivar comentarios
             state.commentMode = false;
             document.body.classList.remove('comment-mode');
-            document.getElementById('hotspotLayer').classList.remove('active');
 
-            // Ocultar marcadores en modo browse
-            document.querySelectorAll('.marker').forEach(m => m.style.display = 'none');
+            // Mostrar iframe, ocultar screenshot
+            document.getElementById('iframeContainer').style.display = 'block';
+            document.getElementById('screenshotContainer').style.display = 'none';
+
+            // Cargar iframe con la URL actual
+            const currentUrl = document.getElementById('navUrlInput').value.trim() || state.currentProject?.url;
+            if (currentUrl) {
+                loadIframe(currentUrl);
+            }
         }
 
-        function switchToCommentMode() {
+        async function switchToCommentMode() {
             if (currentMode === 'comment') return;
             currentMode = 'comment';
 
-            // Update buttons - INSTANTÁNEO
+            // Update buttons
             document.getElementById('btnCapture').classList.add('active');
             document.getElementById('btnBrowse').classList.remove('active');
 
@@ -2387,16 +2431,20 @@
             document.body.classList.add('comment-mode');
             document.getElementById('hotspotLayer').classList.add('active');
 
-            // Mostrar marcadores
-            document.querySelectorAll('.marker').forEach(m => m.style.display = 'flex');
+            // Ocultar iframe, mostrar screenshot
+            document.getElementById('iframeContainer').style.display = 'none';
+            document.getElementById('screenshotContainer').style.display = 'block';
 
-            // Re-renderizar marcadores para la página actual
-            renderMarkers();
+            // Capturar screenshot de la página actual
+            const currentUrl = document.getElementById('navUrlInput').value.trim() || state.currentProject?.url;
+            if (currentUrl) {
+                await loadScreenshot(currentUrl, deviceWidths[currentDevice]);
+            }
         }
 
         // Función legacy para compatibilidad
         async function captureAndComment() {
-            switchToCommentMode();
+            await switchToCommentMode();
         }
     </script>
 </body>
