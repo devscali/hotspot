@@ -1117,6 +1117,44 @@
             color: white;
         }
 
+        /* Browse navigation bar */
+        .browse-nav-bar {
+            position: fixed;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 999;
+            background: var(--bg-card);
+            padding: 8px 12px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .browse-url-input {
+            width: 350px;
+            padding: 8px 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 13px;
+        }
+
+        .browse-url-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        @media (max-width: 768px) {
+            .browse-url-input {
+                width: 200px;
+            }
+        }
+
         /* Image Upload Area */
         .upload-area {
             border: 2px dashed var(--border);
@@ -1349,6 +1387,12 @@
                     <button class="mode-toggle-btn" id="btnBrowse" onclick="switchToBrowseMode()">
                         🔍 Browse
                     </button>
+                </div>
+
+                <!-- Barra de navegación para Browse mode -->
+                <div class="browse-nav-bar" id="browseNavBar" style="display: none;">
+                    <input type="text" id="browseUrlInput" class="browse-url-input" placeholder="https://ejemplo.com/pagina" onkeypress="if(event.key==='Enter')navigateToUrl()">
+                    <button class="btn btn-primary btn-sm" onclick="navigateToUrl()">Ir</button>
                 </div>
                 <div class="mobile-overlay" id="mobileOverlay" onclick="closeMobilePanel()"></div>
                 <div class="preview-wrapper" id="previewWrapper">
@@ -2407,24 +2451,55 @@
             state.commentMode = false;
             document.body.classList.remove('comment-mode');
 
+            // Mostrar barra de navegación
+            document.getElementById('browseNavBar').style.display = 'flex';
+
             // Mostrar iframe, ocultar screenshot
             document.getElementById('iframeContainer').style.display = 'block';
             document.getElementById('screenshotContainer').style.display = 'none';
 
-            // Cargar iframe con la URL actual
+            // Cargar iframe con la URL actual y mostrarla en el input
             const currentUrl = document.getElementById('navUrlInput').value.trim() || state.currentProject?.url;
             if (currentUrl) {
+                document.getElementById('browseUrlInput').value = currentUrl;
+                browseIframeUrl = currentUrl;
                 loadIframe(currentUrl);
             }
         }
 
+        // Navegar a una URL en Browse mode
+        function navigateToUrl() {
+            let url = document.getElementById('browseUrlInput').value.trim();
+            if (!url) return;
+
+            // Agregar https si no tiene protocolo
+            if (!url.startsWith('http')) {
+                url = 'https://' + url;
+                document.getElementById('browseUrlInput').value = url;
+            }
+
+            browseIframeUrl = url;
+            document.getElementById('navUrlInput').value = url;
+            loadIframe(url);
+        }
+
         async function switchToCommentMode() {
             if (currentMode === 'comment') return;
+
+            // Usar la URL del input de browse (la más actualizada)
+            const urlToCapture = document.getElementById('browseUrlInput')?.value.trim() ||
+                                 browseIframeUrl ||
+                                 document.getElementById('navUrlInput').value.trim() ||
+                                 state.currentProject?.url;
+
             currentMode = 'comment';
 
             // Update buttons
             document.getElementById('btnCapture').classList.add('active');
             document.getElementById('btnBrowse').classList.remove('active');
+
+            // Ocultar barra de navegación
+            document.getElementById('browseNavBar').style.display = 'none';
 
             // Activar modo comentario
             state.commentMode = true;
@@ -2435,10 +2510,12 @@
             document.getElementById('iframeContainer').style.display = 'none';
             document.getElementById('screenshotContainer').style.display = 'block';
 
-            // Capturar screenshot de la página actual
-            const currentUrl = document.getElementById('navUrlInput').value.trim() || state.currentProject?.url;
-            if (currentUrl) {
-                await loadScreenshot(currentUrl, deviceWidths[currentDevice]);
+            // Capturar screenshot de la página que estábamos viendo
+            if (urlToCapture) {
+                // Actualizar URLs con la URL correcta
+                document.getElementById('navUrlInput').value = urlToCapture;
+                browseIframeUrl = urlToCapture;
+                await loadScreenshot(urlToCapture, deviceWidths[currentDevice]);
             }
         }
 
