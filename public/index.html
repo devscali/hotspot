@@ -223,6 +223,71 @@
 
         .comments-list { padding: 12px; }
 
+        /* Page groups in comments */
+        .page-group {
+            margin-bottom: 16px;
+        }
+
+        .page-group-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .page-group-header:hover {
+            border-color: var(--accent);
+        }
+
+        .page-group-header.active {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: var(--accent);
+        }
+
+        .page-group-title {
+            font-size: 12px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+        }
+
+        .page-group-count {
+            background: var(--accent);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .page-group-chevron {
+            color: var(--text-muted);
+            margin-left: 8px;
+            transition: transform 0.2s;
+        }
+
+        .page-group.expanded .page-group-chevron {
+            transform: rotate(180deg);
+        }
+
+        .page-group-comments {
+            display: none;
+            padding-left: 0;
+        }
+
+        .page-group.expanded .page-group-comments {
+            display: block;
+        }
+
         .comment-item {
             background: var(--bg);
             border: 1px solid var(--border);
@@ -1760,12 +1825,16 @@
             const text = document.getElementById('commentText').value.trim();
             if (!text && !state.pendingImage) return;
 
+            // Obtener la URL actual
+            const currentUrl = document.getElementById('navUrlInput').value.trim() || state.currentProject?.url;
+
             const comment = {
                 id: 'c_' + Date.now(),
                 x: state.pendingComment.x,
                 y: state.pendingComment.y,
                 text: text || '',
                 image: state.pendingImage || null,
+                pageUrl: currentUrl, // Guardar la URL de la página
                 createdAt: new Date().toISOString(),
                 resolved: false
             };
@@ -1804,32 +1873,103 @@
                     <div class="empty-state">
                         <div class="empty-state-icon">💬</div>
                         <h3>No hay comentarios</h3>
-                        <p>${state.filter === 'active' ? 'Haz click en + para agregar' : ''}</p>
+                        <p>${state.filter === 'active' ? 'Haz click en la imagen para agregar' : ''}</p>
                     </div>
                 `;
                 return;
             }
 
-            list.innerHTML = comments.map((c, i) => `
-                <div class="comment-item" onclick="focusMarker('${c.id}')">
-                    <div class="comment-item-header">
-                        <span class="comment-badge ${c.resolved ? 'resolved' : ''}">${i + 1}</span>
-                        <span class="comment-time">${timeAgo(c.createdAt)}</span>
-                    </div>
-                    ${c.text ? `<div class="comment-text">${c.text}</div>` : ''}
-                    ${c.image ? `
-                        <div class="comment-attachment">
-                            <img src="${c.image}" alt="Adjunto" onclick="event.stopPropagation();openLightbox('${c.image}')">
+            // Agrupar comentarios por página/URL
+            const currentUrl = document.getElementById('navUrlInput').value.trim() || state.currentProject?.url;
+            const groupedByPage = {};
+
+            comments.forEach(c => {
+                const pageUrl = c.pageUrl || state.currentProject.url; // Fallback para comentarios viejos
+                if (!groupedByPage[pageUrl]) {
+                    groupedByPage[pageUrl] = [];
+                }
+                groupedByPage[pageUrl].push(c);
+            });
+
+            // Generar HTML agrupado por página
+            let html = '';
+            let globalIndex = 0;
+
+            Object.keys(groupedByPage).forEach(pageUrl => {
+                const pageComments = groupedByPage[pageUrl];
+                const isCurrentPage = pageUrl === currentUrl;
+                const pagePath = getPathFromUrl(pageUrl);
+
+                html += `
+                    <div class="page-group ${isCurrentPage ? 'expanded' : ''}" data-url="${pageUrl}">
+                        <div class="page-group-header ${isCurrentPage ? 'active' : ''}" onclick="togglePageGroup(this.parentElement, '${pageUrl}')">
+                            <span class="page-group-title">${pagePath}</span>
+                            <span class="page-group-count">${pageComments.length}</span>
+                            <span class="page-group-chevron">▼</span>
                         </div>
-                    ` : ''}
-                    <div class="comment-actions">
-                        ${!c.resolved
-                            ? `<button class="btn btn-sm" onclick="event.stopPropagation();resolveComment('${c.id}')">✓ Resolver</button>`
-                            : `<button class="btn btn-sm" onclick="event.stopPropagation();unresolveComment('${c.id}')">↩ Reabrir</button>`
-                        }
+                        <div class="page-group-comments">
+                `;
+
+                pageComments.forEach((c, i) => {
+                    globalIndex++;
+                    html += `
+                        <div class="comment-item" onclick="goToCommentPage('${pageUrl}', '${c.id}')">
+                            <div class="comment-item-header">
+                                <span class="comment-badge ${c.resolved ? 'resolved' : ''}">${i + 1}</span>
+                                <span class="comment-time">${timeAgo(c.createdAt)}</span>
+                            </div>
+                            ${c.text ? `<div class="comment-text">${c.text}</div>` : ''}
+                            ${c.image ? `
+                                <div class="comment-attachment">
+                                    <img src="${c.image}" alt="Adjunto" onclick="event.stopPropagation();openLightbox('${c.image}')">
+                                </div>
+                            ` : ''}
+                            <div class="comment-actions">
+                                ${!c.resolved
+                                    ? `<button class="btn btn-sm" onclick="event.stopPropagation();resolveComment('${c.id}')">✓ Resolver</button>`
+                                    : `<button class="btn btn-sm" onclick="event.stopPropagation();unresolveComment('${c.id}')">↩ Reabrir</button>`
+                                }
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `
+                        </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+            });
+
+            list.innerHTML = html;
+        }
+
+        // Obtener solo el path de una URL
+        function getPathFromUrl(url) {
+            try {
+                const parsed = new URL(url);
+                return parsed.pathname || '/';
+            } catch {
+                return url;
+            }
+        }
+
+        // Toggle grupo de página
+        function togglePageGroup(groupEl, pageUrl) {
+            groupEl.classList.toggle('expanded');
+        }
+
+        // Ir a la página del comentario y enfocar el marcador
+        async function goToCommentPage(pageUrl, commentId) {
+            const currentUrl = document.getElementById('navUrlInput').value.trim();
+
+            if (pageUrl !== currentUrl) {
+                // Navegar a esa página primero
+                document.getElementById('navUrlInput').value = pageUrl;
+                await loadScreenshot(pageUrl, deviceWidths[currentDevice]);
+            }
+
+            // Enfocar el marcador
+            setTimeout(() => focusMarker(commentId), 300);
         }
 
         async function resolveComment(id) {
@@ -1868,8 +2008,15 @@
                 return;
             }
 
-            // Solo mostrar comentarios activos (no resueltos)
-            const activeComments = state.currentProject.comments.filter(c => !c.resolved);
+            // Obtener la URL actual
+            const currentUrl = document.getElementById('navUrlInput').value.trim() || state.currentProject?.url;
+
+            // Solo mostrar comentarios activos (no resueltos) DE LA PÁGINA ACTUAL
+            const activeComments = state.currentProject.comments.filter(c => {
+                if (c.resolved) return false;
+                const commentUrl = c.pageUrl || state.currentProject.url;
+                return commentUrl === currentUrl;
+            });
 
             activeComments.forEach((c, i) => {
                 // Para screenshots, los marcadores se posicionan directamente en las coordenadas guardadas
@@ -1880,9 +2027,53 @@
                 marker.textContent = i + 1;
                 marker.dataset.id = c.id;
                 marker.dataset.projectId = state.currentProject.id;
-                marker.onclick = (e) => { e.stopPropagation(); focusComment(c.id); };
+                marker.onclick = (e) => { e.stopPropagation(); showCommentDetail(c.id); };
                 layer.appendChild(marker);
             });
+        }
+
+        // Mostrar detalle del comentario al dar click en marcador
+        function showCommentDetail(commentId) {
+            const comment = state.currentProject.comments.find(c => c.id === commentId);
+            if (!comment) return;
+
+            // Mostrar el panel lateral si está colapsado
+            const panel = document.getElementById('sidePanel');
+            if (panel.classList.contains('collapsed')) {
+                panel.classList.remove('collapsed');
+            }
+
+            // Cambiar al tab correcto
+            state.filter = comment.resolved ? 'resolved' : 'active';
+            document.querySelectorAll('.comments-header .tab').forEach((t, i) => {
+                t.classList.toggle('active', i === (comment.resolved ? 1 : 0));
+            });
+
+            // Re-renderizar comentarios
+            renderComments();
+
+            // Expandir el grupo de la página del comentario
+            const pageUrl = comment.pageUrl || state.currentProject.url;
+            const pageGroups = document.querySelectorAll('.page-group');
+            pageGroups.forEach(group => {
+                if (group.dataset.url === pageUrl) {
+                    group.classList.add('expanded');
+                }
+            });
+
+            // Scroll al comentario en la lista
+            setTimeout(() => {
+                const commentItem = document.querySelector(`.comment-item[onclick*="${commentId}"]`);
+                if (commentItem) {
+                    commentItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    commentItem.style.borderColor = 'var(--accent)';
+                    commentItem.style.background = 'rgba(239, 68, 68, 0.1)';
+                    setTimeout(() => {
+                        commentItem.style.borderColor = '';
+                        commentItem.style.background = '';
+                    }, 2000);
+                }
+            }, 100);
         }
 
         function focusMarker(id) {
@@ -2080,7 +2271,15 @@
         }
 
         async function captureAndComment() {
-            // Get the URL from the browse mode or input
+            // Si ya estamos en modo capture, solo activar comentarios
+            if (currentMode === 'capture') {
+                state.commentMode = true;
+                document.getElementById('hotspotLayer').classList.add('active');
+                document.body.classList.add('comment-mode');
+                return;
+            }
+
+            // Si venimos del modo browse, capturar la URL actual del iframe
             const urlToCapture = browseIframeUrl || document.getElementById('navUrlInput').value.trim() || state.currentProject?.url;
 
             if (!urlToCapture) return;
@@ -2101,7 +2300,7 @@
             // Update URL input
             document.getElementById('navUrlInput').value = urlToCapture;
 
-            // Capture screenshot
+            // Capture screenshot - solo si venimos de browse mode
             await loadScreenshot(urlToCapture, deviceWidths[currentDevice]);
 
             // Enable comment mode
