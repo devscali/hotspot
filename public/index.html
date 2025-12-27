@@ -1828,77 +1828,53 @@
             const loading = document.getElementById('previewLoading');
             const error = document.getElementById('previewError');
             const errorMsg = document.getElementById('previewErrorMsg');
-            const screenshot = document.getElementById('previewScreenshot');
+            const iframeContainer = document.getElementById('iframeContainer');
+            const screenshotContainer = document.getElementById('screenshotContainer');
+            const iframe = document.getElementById('previewIframe');
             const layer = document.getElementById('hotspotLayer');
             const loadingText = document.getElementById('loadingText');
-            const progressFill = document.getElementById('progressFill');
-            const progressPercent = document.getElementById('progressPercent');
 
             loading.style.display = 'block';
             error.style.display = 'none';
-            screenshot.style.display = 'none';
-
-            // Reset progress
-            progressFill.style.width = '0%';
-            progressPercent.textContent = '0%';
-            loadingText.textContent = 'Conectando con el servidor...';
-
-            // Simular progreso mientras espera
-            let progress = 0;
-            const progressInterval = setInterval(() => {
-                if (progress < 90) {
-                    // Incremento variable para parecer más natural
-                    const increment = progress < 30 ? 8 : progress < 60 ? 4 : 2;
-                    progress = Math.min(90, progress + increment);
-                    progressFill.style.width = progress + '%';
-                    progressPercent.textContent = progress + '%';
-
-                    // Cambiar texto según el progreso
-                    if (progress >= 10 && progress < 30) {
-                        loadingText.textContent = 'Abriendo navegador...';
-                    } else if (progress >= 30 && progress < 50) {
-                        loadingText.textContent = 'Navegando a la página...';
-                    } else if (progress >= 50 && progress < 70) {
-                        loadingText.textContent = 'Esperando que cargue el contenido...';
-                    } else if (progress >= 70 && progress < 85) {
-                        loadingText.textContent = 'Renderizando página...';
-                    } else if (progress >= 85) {
-                        loadingText.textContent = 'Capturando screenshot...';
-                    }
-                }
-            }, 500);
+            loadingText.textContent = 'Cargando página...';
 
             try {
-                const response = await fetch(`/screenshot?url=${encodeURIComponent(url)}&fullPage=true&width=${width}`);
-                const data = await response.json();
+                // Usar iframe con proxy en lugar de screenshot
+                const proxyUrl = `/proxy?url=${encodeURIComponent(url)}`;
 
-                clearInterval(progressInterval);
+                // Mostrar iframe container en lugar de screenshot
+                screenshotContainer.style.display = 'none';
+                iframeContainer.style.display = 'block';
 
-                if (!response.ok || data.error) {
-                    throw new Error(data.message || data.error || 'Error desconocido');
-                }
+                // Mover el hotspot layer al iframe container
+                iframeContainer.appendChild(layer);
+                layer.style.display = 'block';
 
-                // Completar progreso
-                progressFill.style.width = '100%';
-                progressPercent.textContent = '100%';
-                loadingText.textContent = 'Completado!';
+                iframe.src = proxyUrl;
 
-                // Pequeña pausa para mostrar el 100%
-                await new Promise(r => setTimeout(r, 300));
+                // Esperar a que cargue el iframe
+                await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                        resolve(); // Resolver aunque no cargue completamente
+                    }, 10000);
 
-                // Mostrar screenshot
-                screenshot.src = data.screenshot;
-                screenshot.style.display = 'block';
+                    iframe.onload = () => {
+                        clearTimeout(timeout);
+                        resolve();
+                    };
+                    iframe.onerror = () => {
+                        clearTimeout(timeout);
+                        reject(new Error('Error al cargar la página'));
+                    };
+                });
+
                 loading.style.display = 'none';
 
-                // Renderizar marcadores cuando la imagen cargue
-                screenshot.onload = () => {
-                    renderMarkers();
-                    renderComments(); // Actualizar lista para marcar página actual
+                // Guardar dimensiones del iframe
+                state.screenshotDimensions = {
+                    width: iframe.offsetWidth,
+                    height: iframe.offsetHeight
                 };
-
-                // Guardar dimensiones
-                state.screenshotDimensions = data.dimensions;
 
                 // Actualizar URL en el input oculto
                 document.getElementById('navUrlInput').value = url;
@@ -1906,9 +1882,14 @@
                 // Actualizar título de página en el top bar
                 document.getElementById('currentPageTitle').textContent = getPathFromUrl(url);
 
+                // Renderizar marcadores
+                setTimeout(() => {
+                    renderMarkers();
+                    renderComments();
+                }, 500);
+
             } catch (err) {
-                clearInterval(progressInterval);
-                console.error('Error loading screenshot:', err);
+                console.error('Error loading page:', err);
                 loading.style.display = 'none';
                 error.style.display = 'block';
                 errorMsg.textContent = err.message;
@@ -2257,25 +2238,16 @@
                 return commentUrl === currentUrl;
             });
 
-            // Obtener dimensiones del screenshot para escalar marcadores
-            const screenshot = document.getElementById('previewScreenshot');
-            const screenshotRect = screenshot.getBoundingClientRect();
+            // Obtener dimensiones del contenedor (iframe o screenshot)
             const layerRect = layer.getBoundingClientRect();
-
-            // Calcular escala si el screenshot está redimensionado
-            const scaleX = screenshotRect.width / (state.screenshotDimensions?.width || screenshotRect.width);
-            const scaleY = screenshotRect.height / (state.screenshotDimensions?.height || screenshotRect.height);
 
             activeComments.forEach((c, i) => {
                 const marker = document.createElement('div');
                 marker.className = 'marker';
 
-                // Posicionar escalado al tamaño actual del screenshot
-                const displayX = c.x * scaleX;
-                const displayY = c.y * scaleY;
-
-                marker.style.left = displayX + 'px';
-                marker.style.top = displayY + 'px';
+                // Posicionar usando porcentajes para que funcione con cualquier tamaño
+                marker.style.left = c.x + 'px';
+                marker.style.top = c.y + 'px';
                 marker.textContent = i + 1;
                 marker.dataset.id = c.id;
                 marker.dataset.projectId = state.currentProject.id;
