@@ -2222,10 +2222,7 @@
                 return;
             }
 
-            // Solo renderizar en modo Comment
-            if (currentMode !== 'comment') {
-                return;
-            }
+            // Renderizar en ambos modos (comment y browse)
 
             // Obtener la URL actual normalizada
             const rawCurrentUrl = document.getElementById('navUrlInput').value.trim() || state.currentProject?.url;
@@ -2418,9 +2415,9 @@
             document.getElementById('btnBrowse').classList.add('active');
             document.getElementById('btnCapture').classList.remove('active');
 
-            // Desactivar comentarios
-            state.commentMode = false;
-            document.body.classList.remove('comment-mode');
+            // Activar modo comentario para poder hacer click
+            state.commentMode = true;
+            document.body.classList.add('comment-mode');
 
             // Mostrar barra de navegación
             document.getElementById('browseNavBar').style.display = 'flex';
@@ -2429,6 +2426,12 @@
             document.getElementById('iframeContainer').style.display = 'block';
             document.getElementById('screenshotContainer').style.display = 'none';
 
+            // Mover hotspot layer al iframe container
+            const layer = document.getElementById('hotspotLayer');
+            const iframeContainer = document.getElementById('iframeContainer');
+            iframeContainer.appendChild(layer);
+            layer.classList.add('active');
+
             // Cargar iframe con la URL actual y mostrarla en el input
             const currentUrl = document.getElementById('navUrlInput').value.trim() || state.currentProject?.url;
             if (currentUrl) {
@@ -2436,6 +2439,11 @@
                 browseIframeUrl = currentUrl;
                 loadIframe(currentUrl);
             }
+
+            // Renderizar markers existentes
+            setTimeout(() => {
+                renderMarkers();
+            }, 500);
         }
 
         // Navegar a una URL en Browse mode
@@ -2452,6 +2460,12 @@
             browseIframeUrl = url;
             document.getElementById('navUrlInput').value = url;
             loadIframe(url);
+
+            // Renderizar markers para la nueva URL
+            setTimeout(() => {
+                renderMarkers();
+                renderComments();
+            }, 1000);
         }
 
         async function switchToCommentMode() {
