@@ -38,10 +38,12 @@ export async function handler(event) {
         let html = await response.text();
         const baseUrl = new URL(targetUrl);
 
-        // Script que inyectamos para comunicar scroll
+        // Script que inyectamos para comunicar scroll, tamaño y cambios de URL
         const injectedScript = `
         <script>
         (function() {
+            var lastUrl = window.location.href;
+
             function sendScroll() {
                 window.parent.postMessage({
                     type: 'hotspot-scroll',
@@ -58,12 +60,38 @@ export async function handler(event) {
                 }, '*');
             }
 
+            function sendUrl() {
+                var currentUrl = window.location.href;
+                if (currentUrl !== lastUrl) {
+                    lastUrl = currentUrl;
+                    window.parent.postMessage({
+                        type: 'hotspot-url',
+                        url: currentUrl
+                    }, '*');
+                }
+            }
+
             window.addEventListener('scroll', sendScroll, { passive: true });
             window.addEventListener('resize', sendSize, { passive: true });
+            window.addEventListener('hashchange', sendUrl, { passive: true });
+            window.addEventListener('popstate', sendUrl, { passive: true });
+
+            // Interceptar clicks en links para detectar navegación
+            document.addEventListener('click', function(e) {
+                var link = e.target.closest('a');
+                if (link && link.href) {
+                    setTimeout(sendUrl, 100);
+                }
+            }, true);
 
             window.addEventListener('load', function() {
                 sendScroll();
                 sendSize();
+                // Enviar URL inicial
+                window.parent.postMessage({
+                    type: 'hotspot-url',
+                    url: window.location.href
+                }, '*');
             });
 
             setTimeout(function() {

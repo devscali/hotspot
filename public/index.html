@@ -1827,6 +1827,9 @@
                         browseIframeUrl = newUrl;
                         document.getElementById('navUrlInput').value = newUrl;
                         document.getElementById('currentPageTitle').textContent = getPathFromUrl(newUrl);
+                        // Actualizar también el input de browse si existe
+                        const browseInput = document.getElementById('browseUrlInput');
+                        if (browseInput) browseInput.value = newUrl;
                         // Reset scroll cuando cambia la página
                         state.iframeScroll = { x: 0, y: 0 };
                         renderMarkers();
@@ -2162,7 +2165,7 @@
             }
         }
 
-        // Normalizar URL para comparación (quitar trailing slash, etc.)
+        // Normalizar URL para comparación (incluir hash/anchor para secciones)
         function normalizeUrl(url) {
             try {
                 const parsed = new URL(url);
@@ -2171,7 +2174,9 @@
                 if (path !== '/' && path.endsWith('/')) {
                     path = path.slice(0, -1);
                 }
-                return parsed.origin + path;
+                // Incluir hash si existe (para secciones como #contacto)
+                const hash = parsed.hash || '';
+                return parsed.origin + path + hash;
             } catch {
                 return url;
             }
